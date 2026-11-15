@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JOEL TIPS</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23FFD000'/><text x='16' y='23' font-size='18' font-family='Arial' font-weight='900' text-anchor='middle' fill='%23111'>J</text></svg>">
+<style>
+  :root {
+    --bg: #0b0b0d; --card: #151518; --card2: #1c1c21; --line: #2a2a31; --text: #f2f2f2; --muted: #9a9aa3;
+    --yellow: #FFD000; --yellow-dim: #3a3000; --yellow-soft: #fff1a6;
+    --green: #22c55e; --red: #ef4444; --mid: #c9a227; --low: #6b6b74;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .top { border-bottom: 3px solid var(--yellow); background: #000; }
+  .top-in { max-width: 1000px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark { width: 40px; height: 40px; border-radius: 9px; background: var(--yellow); color: #111; display: grid; place-items: center; font-weight: 900; font-size: 22px; }
+  .logo-name { font-size: 26px; font-weight: 900; letter-spacing: 1px; }
+  .logo-name span { color: var(--yellow); }
+  .tagline { color: var(--muted); font-size: 13px; margin-left: auto; }
+  main { max-width: 1000px; margin: 0 auto; padding: 8px 16px 40px; }
+  .hero { margin: 18px 0 6px; }
+  .hero h1 { margin: 0; font-size: 20px; }
+  .hero h1 em { font-style: normal; color: var(--yellow); }
+  .hero p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 12px 0; }
+  .panel h2 { font-size: 14px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .5px; color: var(--yellow); }
+  .sub { color: var(--muted); font-size: 13px; }
+  .acc { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+  .acc div { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; }
+  .acc b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .acc small { color: var(--muted); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip, .filters select, .filters input { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 20px; padding: 7px 13px; font: inherit; font-size: 13px; }
+  .chip { cursor: pointer; }
+  .chip:hover { border-color: var(--yellow); }
+  .chip.on { background: var(--yellow); border-color: var(--yellow); color: #111; font-weight: 700; }
+  .filters input { flex: 1; min-width: 160px; }
+  .filters select { max-width: 100%; }
+  .count { margin: 4px 2px 10px; font-size: 13px; color: var(--muted); }
+  .count b { color: var(--yellow); }
+  .list { display: grid; gap: 8px; }
+  .game { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center; }
+  .game.top { border-color: var(--yellow); box-shadow: inset 4px 0 0 var(--yellow); }
+  .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .teams { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .teams img { width: 20px; height: 20px; object-fit: contain; }
+  .score { font-variant-numeric: tabular-nums; padding: 0 4px; color: var(--yellow); }
+  .vs { color: var(--muted); font-weight: 400; }
+  .prob { text-align: right; min-width: 96px; }
+  .prob b { font-size: 28px; font-variant-numeric: tabular-nums; }
+  .prob small { display: block; color: var(--muted); font-size: 11px; }
+  .bar { grid-column: 1 / -1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .bar span { display: block; height: 100%; }
+  .details { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+  .tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
+  .tag.live { background: var(--red); color: #fff; animation: pulse 1.5s infinite; }
+  .tag.green { background: var(--green); color: #04150a; }
+  .tag.red { background: #3b1414; color: var(--red); }
+  .tag.conf { background: var(--yellow); color: #111; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .empty, .loading { text-align: center; color: var(--muted); padding: 30px 10px; }
+  .progress { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 12px auto 0; max-width: 420px; }
+  .progress span { display: block; height: 100%; background: var(--yellow); transition: width .3s; }
+  .warn { font-size: 12px; color: var(--muted); border-left: 3px solid var(--yellow); padding-left: 10px; margin-top: 20px; }
+  @media (max-width: 560px) { .prob b { font-size: 23px; } .teams { font-size: 15px; } .tagline { margin-left: 0; } .logo-name { font-size: 22px; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="top-in">
+    <div class="logo"><div class="logo-mark">J</div><div class="logo-name">JOEL <span>TIPS</span></div></div>
+    <div class="tagline">Gol no 1º tempo • todas as ligas • ao vivo</div>
+  </div>
+</div>
+<main>
+  <div class="hero">
+    <h1>Jogos com <em>alta chance de gol no 1º tempo</em></h1>
+    <p>Over 0.5 HT — pelo menos 1 gol até o intervalo. Ao vivo e próximos 3 dias, todas as competições com dados. Atualiza sozinho a cada 30s.</p>
+  </div>
+
+  <section class="panel">
+    <h2>Acerto do modelo no passado</h2>
+    <div class="sub" id="accSub">Calculando…</div>
+    <div class="acc" id="acc"></div>
+  </section>
+
+  <section class="panel">
+    <div class="filters">
+      <button class="chip" data-min="0.7">70%+</button>
+      <button class="chip on" data-min="0.75">75%+</button>
+      <button class="chip" data-min="0.8">80%+</button>
+      <button class="chip" data-min="0.85">85%+</button>
+      <select id="when">
+        <option value="all">Ao vivo + futuros</option>
+        <option value="live">Só ao vivo</option>
+        <option value="pre">Só futuros</option>
+      </select>
+      <select id="league"><option value="">Todas as ligas</option></select>
+      <input id="q" type="search" placeholder="Buscar time…">
+    </div>
+  </section>
+
+  <div class="count" id="count"></div>
+  <div id="list" class="list"><div class="loading">Carregando…</div></div>
+
+  <p class="warn">Nenhum palpite é 100%. A porcentagem já foi ajustada pelo que aconteceu de verdade nos jogos passados: se diz 82%, em média 82 de cada 100 jogos parecidos tiveram gol no 1º tempo — e 18 não. Use como análise, não como garantia. Se apostar, só com dinheiro que pode perder. +18.</p>
+</main>
+
+<script>
+  let minProb = 0.75, data = [];
+  const $ = (s) => document.querySelector(s);
+  const pct = (x) => Math.round(x * 100) + '%';
+  const color = (p) => p >= 0.75 ? 'var(--yellow)' : p >= 0.7 ? 'var(--mid)' : 'var(--low)';
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  document.querySelectorAll('[data-min]').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('[data-min]').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on'); minProb = +b.dataset.min; render();
+  });
+  $('#when').onchange = render; $('#league').onchange = render; $('#q').oninput = render;
+
+  function when(g) {
+    const d = new Date(g.date), today = new Date(), tm = new Date(); tm.setDate(today.getDate() + 1);
+    const hm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === today.toDateString()) return 'Hoje ' + hm;
+    if (d.toDateString() === tm.toDateString()) return 'Amanhã ' + hm;
+    return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ' ' + hm;
+  }
+
+  const finishedHT = (g) => g.live && (g.live.status === 'green' || g.live.status === 'red');
+  // probabilidade "agora": ao vivo usa o tempo que falta; antes do jogo usa a pré-jogo
+  const current = (g) => finishedHT(g) ? g.prob : g.live ? g.live.p05 : g.prob;
+
+  function render() {
+    const w = $('#when').value, lg = $('#league').value, q = $('#q').value.trim().toLowerCase();
+    const games = data.filter((g) => {
+      if (g.state === 'post') return false;
+      if (lg && g.league !== lg) return false;
+      if (q && !(g.home.name + ' ' + g.away.name).toLowerCase().includes(q)) return false;
+      if (w === 'live' && g.state !== 'in') return false;
+      if (w === 'pre' && g.state !== 'pre') return false;
+      return current(g) >= minProb;
+    });
+    const live = games.filter((g) => g.state === 'in').length;
+    $('#count').innerHTML = `<b>${games.length}</b> jogo(s) com ${pct(minProb)}+ ${live ? `• <b>${live}</b> ao vivo` : ''}`;
+    if (!games.length) {
+      $('#list').innerHTML = `<div class="empty">Nenhum jogo com ${pct(minProb)}+ agora.<br>Tente baixar o mínimo ou volte mais tarde.</div>`;
+      return;
+    }
+    $('#list').innerHTML = games.map((g) => {
+      const p = current(g);
+      const reliable = g.nHome >= 10 && g.nAway >= 10;
+      let tag = '', probLabel = 'pré-jogo';
+      if (g.live) {
+        if (g.live.status === 'green') { tag = '<span class="tag green">✓ SAIU GOL NO 1º T</span>'; probLabel = 'pré-jogo'; }
+        else if (g.live.status === 'red') { tag = '<span class="tag red">✗ 1º tempo sem gol</span>'; probLabel = 'pré-jogo'; }
+        else { tag = `<span class="tag live">AO VIVO ${esc(g.clock)}</span>`; probLabel = `até o intervalo (pré: ${pct(g.prob)})`; }
+      }
+      if (!g.live && p >= 0.78 && reliable) tag += '<span class="tag conf">★ Alta confiança</span>';
+      const score = g.state !== 'pre' ? `<span class="score">${g.scoreH} - ${g.scoreA}</span>` : '<span class="vs">x</span>';
+      const img = (t) => t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">` : '';
+      return `<div class="game ${p >= 0.75 ? 'top' : ''}">
+        <div>
+          <div class="meta"><span>${esc(g.leagueName)}</span><span>•</span><span>${when(g)}</span>${tag}</div>
+          <div class="teams">${img(g.home)}${esc(g.home.name)} ${score} ${esc(g.away.name)}${img(g.away)}</div>
+        </div>
+        <div class="prob"><b style="color:${color(p)}">${pct(p)}</b><small>${probLabel}</small></div>
+        <div class="bar"><span style="width:${pct(p)};background:${color(p)}"></span></div>
+        <div class="details">
+          ${esc(g.home.name)}: gol no 1º T em ${pct(g.rateHome)} dos jogos (${g.nHome} jogos) •
+          ${esc(g.away.name)}: ${pct(g.rateAway)} (${g.nAway} jogos) •
+          gols esperados no 1º T: ${g.lam.toFixed(2)} • Over 1.5 HT: ${pct(g.live && g.live.status === 'live' ? g.live.p15 : g.p15)}
+          ${g.state === 'in' ? ` • 1º T: ${g.h1Home}-${g.h1Away}` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadStatus() {
+    const s = await (await fetch('/api/status')).json();
+    const L = s.loading;
+    if (!L.ready) {
+      const w = L.total ? Math.round(100 * L.done / L.total) : 0;
+      $('#list').innerHTML = `<div class="loading">Baixando histórico de jogos de todas as ligas… ${L.done}/${L.total || '?'} dias<br><small>Só demora assim na primeira vez.</small><div class="progress"><span style="width:${w}%"></span></div></div>`;
+      $('#accSub').textContent = 'Aguardando o histórico…';
+      return false;
+    }
+    const b = s.backtest;
+    if (b && b.n) {
+      $('#accSub').innerHTML = `Teste em <b>${b.n.toLocaleString('pt-BR')}</b> jogos passados de <b>${b.ligas}</b> competições (cada palpite feito só com dados de antes do jogo). Na média, ${pct(b.base)} dos jogos têm gol no 1º tempo.`;
+      $('#acc').innerHTML = b.thresholds.filter((t) => t.n >= 30).map((t) =>
+        `<div><small>Palpites ${pct(t.t)}+</small><b style="color:${color(t.acc)}">${pct(t.acc)}</b><small>acerto em ${t.n.toLocaleString('pt-BR')} jogos</small></div>`).join('');
+    }
+    return true;
+  }
+
+  async function loadGames() {
+    const r = await (await fetch('/api/jogos')).json();
+    data = r.jogos || [];
+    const sel = $('#league'), cur = sel.value;
+    const leagues = [...new Map(data.filter((g) => g.state !== 'post').map((g) => [g.league, g.leagueName])).entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]));
+    sel.innerHTML = '<option value="">Todas as ligas</option>' + leagues.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+    sel.value = cur;
+    render();
+  }
+
+  async function tick() {
+    try { if (await loadStatus()) await loadGames(); }
+    catch (e) { $('#list').innerHTML = '<div class="empty">Servidor desligado? Abra o <b>iniciar.bat</b> na pasta do projeto.</div>'; }
+  }
+  tick();
+  setInterval(tick, 30000);
+  // enquanto carrega o histórico, atualiza mais rápido
+  const fast = setInterval(async () => {
+    try { const s = await (await fetch('/api/status')).json(); if (s.loading.ready) { clearInterval(fast); tick(); } else loadStatus(); } catch (_) {}
+  }, 2000);
+</script>
+</body>
+</html>
