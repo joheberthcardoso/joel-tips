@@ -2,7 +2,7 @@
 // Rode: node gerar-historico.js
 const fs = require('fs');
 const path = require('path');
-const VERSION = 2; // igual ao DATA_VERSION do server.js
+const VERSION = 3; // igual ao DATA_VERSION do server.js
 const dir = path.join(__dirname, 'cache');
 const days = {};
 for (const f of fs.readdirSync(dir)) {

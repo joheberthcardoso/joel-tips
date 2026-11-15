@@ -8,11 +8,11 @@ const PORT = process.env.PORT || 3100;
 const CACHE_DIR = path.join(__dirname, 'cache');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SNAPSHOT = path.join(__dirname, 'historico.json');
-const DATA_VERSION = 2;        // muda quando o formato salvo muda (força baixar de novo)
+const DATA_VERSION = 3;       // muda quando o formato salvo muda (força baixar de novo)
 const HISTORY_DAYS = 240;      // quanto histórico usar
 const RECENT_GAMES = 20;       // últimos N jogos de cada time
 const SHRINK = 4;              // "jogos fantasmas" com a média da liga (evita exagero com poucos jogos)
-const MIN_GAMES = 5;           // mínimo de jogos de cada time para dar palpite
+const MIN_GAMES = +(process.env.MIN_GAMES || 3); // testado: 3 mantém o acerto e cobre mais jogos que 5         // mínimo de jogos de cada time para dar palpite
 const ALL_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard?limit=1000&dates=';
 
 // nomes em português das principais; as outras usam o nome que vem da fonte
@@ -87,7 +87,9 @@ function detMinute(det) {
   return det.clock ? Math.ceil(det.clock.value / 60) : null;
 }
 
-const leagueNames = {}; // slug -> nome
+const leagueNames = {}; // id -> nome vindo da fonte
+const slugById = {};    // id -> código tipo "bra.1"
+const leagueName = (id) => PT[slugById[id]] || leagueNames[id] || slugById[id] || 'Futebol';
 
 function parseEvent(ev) {
   const c = ev.competitions && ev.competitions[0];
@@ -95,11 +97,14 @@ function parseEvent(ev) {
   const home = c.competitors.find((t) => t.homeAway === 'home');
   const away = c.competitors.find((t) => t.homeAway === 'away');
   if (!home || !away) return null;
+  // a liga é identificada pelo número (vem em todo jogo); o código tipo "bra.1" só vem em jogos encerrados
+  const leagueId = 'l' + ((ev.uid.match(/l:(\d+)/) || [])[1] || '0');
   const link = (ev.links || []).map((l) => l.href).find((h) => /\/league\//.test(h || ''));
-  const slug = link ? link.split('/league/')[1].split(/[/?#]/)[0] : (ev.uid.match(/l:(\d+)/) || [])[1] || '?';
+  if (link) slugById[leagueId] = link.split('/league/')[1].split(/[/?#]/)[0];
   const note = c.altGameNote ? c.altGameNote.split(',')[0].trim() : null; // tira "Group C2", "Semifinals"...
-  if (!PT[slug] && note && !leagueNames[slug]) leagueNames[slug] = note;
-  const name = PT[slug] || leagueNames[slug] || note || slug;
+  if (note && !leagueNames[leagueId]) leagueNames[leagueId] = note;
+  const slug = leagueId;
+  const name = leagueName(leagueId);
   const st = ev.status || c.status || {};
   const det = c.details || [];
   const goals = det.filter((d) => d.scoringPlay && !d.shootout);
@@ -125,7 +130,7 @@ function parseEvent(ev) {
   };
   const scoreH = parseInt(home.score, 10) || 0, scoreA = parseInt(away.score, 10) || 0;
   return {
-    id: ev.id, league: slug, leagueName: name, date: ev.date, state: st.type && st.type.state,
+    id: ev.id, league: slug, slug: slugById[leagueId] || null, leagueName: name, date: ev.date, state: st.type && st.type.state,
     statusName: st.type && st.type.name, clock: st.displayClock, period: st.period,
     home: { id: home.team.id, name: home.team.shortDisplayName || home.team.displayName, logo: home.team.logo },
     away: { id: away.team.id, name: away.team.shortDisplayName || away.team.displayName, logo: away.team.logo },
@@ -134,6 +139,11 @@ function parseEvent(ev) {
     // só confiamos nos gols se os listados batem com o placar
     reliable: goals.length === scoreH + scoreA,
   };
+}
+
+function learnLeague(e) {
+  if (e.slug && !slugById[e.league]) slugById[e.league] = e.slug;
+  if (!leagueNames[e.league] && e.leagueName) leagueNames[e.league] = e.leagueName;
 }
 
 // ---------- cache por dia (todas as ligas numa consulta) ----------
@@ -145,6 +155,7 @@ async function fetchDay(day, ttlMs) {
   if (m && (ttlMs === Infinity || Date.now() - m.at < ttlMs)) return m.events;
   if (ttlMs === Infinity && fs.existsSync(file)) {
     const events = JSON.parse(fs.readFileSync(file, 'utf8'));
+    for (const e of events) learnLeague(e);
     mem.set(day, { at: Date.now(), events });
     return events;
   }
@@ -177,7 +188,7 @@ async function loadHistory() {
       const snap = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
       if (snap.v === DATA_VERSION) {
         for (const [day, events] of Object.entries(snap.days)) {
-          for (const e of events) if (!PT[e.league] && !leagueNames[e.league]) leagueNames[e.league] = e.leagueName;
+          for (const e of events) learnLeague(e);
           mem.set(day, { at: Date.now(), events });
         }
       }
@@ -221,7 +232,7 @@ function setHistory(list) {
   cardLeagues = new Set();
   for (const [lg, games] of byLeague) {
     const withDet = games.filter((g) => g.cardsH != null);
-    if (withDet.length >= 10 && withDet.filter((g) => g.cardsH + g.cardsA > 0).length / withDet.length >= 0.85) cardLeagues.add(lg);
+    if (withDet.length >= 5 && withDet.filter((g) => g.cardsH + g.cardsA > 0).length / withDet.length >= 0.85) cardLeagues.add(lg);
   }
   for (const mk of MKEYS) {
     leagueIdx[mk] = new Map([...byLeague].map(([k, v]) => [k, buildIdx(v, mk)]));
@@ -396,7 +407,7 @@ async function currentMatches() {
     }
     if (!Object.keys(markets).length) continue;
     const { reliable, ...rest } = m;
-    list.push({ ...rest, markets });
+    list.push({ ...rest, leagueName: leagueName(m.league), markets });
   }
   list.sort((a, b) => a.date.localeCompare(b.date));
   return list;
