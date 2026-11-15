@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3100;
 const CACHE_DIR = path.join(__dirname, 'cache');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SNAPSHOT = path.join(__dirname, 'historico.json');
-const DATA_VERSION = 3;       // muda quando o formato salvo muda (força baixar de novo)
+const DATA_VERSION = 4;      // muda quando o formato salvo muda (força baixar de novo)
 const HISTORY_DAYS = 240;      // quanto histórico usar
 const RECENT_GAMES = 20;       // últimos N jogos de cada time
 const SHRINK = 4;              // "jogos fantasmas" com a média da liga (evita exagero com poucos jogos)
@@ -42,7 +42,10 @@ const MARKETS = {
   },
   corners: {
     label: '+8.5 escanteios', line: 8.5, full: true,
-    get: (g) => [g.cornersH, g.cornersA], known: (g) => g.cornersH != null && g.cornersA != null,
+    get: (g) => [g.cornersH, g.cornersA],
+    // 0 x 0 escanteios no fim do jogo = a fonte não registrou (jogo real sem escanteio é raríssimo);
+    // com prorrogação o total inclui a prorrogação, que a aposta não conta → fica de fora
+    known: (g) => g.cornersH != null && g.cornersA != null && g.cornersH + g.cornersA > 0 && !g.extraTime,
   },
 };
 const MKEYS = Object.keys(MARKETS);
@@ -114,12 +117,14 @@ function parseEvent(ev) {
     if (m == null || m > 45) continue;
     if (g.team && g.team.id === home.team.id) h1Home++; else h1Away++;
   }
-  // cartões: amarelos + vermelhos (cada evento conta 1), só tempo normal
+  // cartões: amarelos + vermelhos (cada evento conta 1), só nos 90 min + acréscimos (sem prorrogação)
   let cardsH = null, cardsA = null;
   if (det.length) {
     cardsH = 0; cardsA = 0;
     for (const d of det) {
       if (!(d.yellowCard || d.redCard) || d.shootout) continue;
+      const min = detMinute(d);
+      if (min != null && min > 90) continue;
       if (d.team && d.team.id === home.team.id) cardsH++; else cardsA++;
     }
   }
@@ -129,7 +134,11 @@ function parseEvent(ev) {
     return isNaN(v) ? null : v;
   };
   const scoreH = parseInt(home.score, 10) || 0, scoreA = parseInt(away.score, 10) || 0;
+  const statusName = (st.type && st.type.name) || '';
   return {
+    // done = terminou de verdade (adiado/cancelado/abandonado também vêm como "post", mas sem resultado)
+    done: !!(st.type && st.type.completed) && /FULL_TIME|FINAL/.test(statusName),
+    extraTime: /AET|PEN|AGT/.test(statusName),
     id: ev.id, league: slug, slug: slugById[leagueId] || null, leagueName: name, date: ev.date, state: st.type && st.type.state,
     statusName: st.type && st.type.name, clock: st.displayClock, period: st.period,
     home: { id: home.team.id, name: home.team.shortDisplayName || home.team.displayName, logo: home.team.logo },
@@ -217,9 +226,10 @@ function buildIdx(games, mk) {
   return { dates, cum, cumHit };
 }
 
-function setHistory(list) {
+let backtestAt = 0;
+function setHistory(list, { recalcBacktest = true } = {}) {
   const map = new Map(history.map((e) => [e.id, e]));
-  for (const e of list) if (e.state === 'post') map.set(e.id, e);
+  for (const e of list) if (e.state === 'post' && e.done) map.set(e.id, e);
   history = [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
   historyIds = new Set(history.map((e) => e.id));
   byTeam = new Map(); const byLeague = new Map();
@@ -237,7 +247,11 @@ function setHistory(list) {
   for (const mk of MKEYS) {
     leagueIdx[mk] = new Map([...byLeague].map(([k, v]) => [k, buildIdx(v, mk)]));
     globalIdx[mk] = buildIdx(history, mk);
-    backtest[mk] = runBacktest(mk);
+  }
+  // o teste no passado é o passo pesado: refaz no máximo a cada 6 h (o servidor grátis é lento)
+  if (recalcBacktest || Date.now() - backtestAt > 6 * 3600000) {
+    for (const mk of MKEYS) backtest[mk] = runBacktest(mk);
+    backtestAt = Date.now();
   }
 }
 
@@ -353,8 +367,15 @@ function liveProb(mk, m, p, prob) {
   const M = MARKETS[mk];
   const halftime = m.statusName === 'STATUS_HALFTIME';
   if (mk === 'ht') {
-    const goals1 = m.h1Home + m.h1Away;
-    if (m.state === 'post' || halftime || (m.state === 'in' && m.period >= 2)) return { status: goals1 > 0 ? 'green' : 'red', now: goals1 };
+    const total = m.scoreH + m.scoreA;
+    const firstHalfLive = m.state === 'in' && !halftime && (m.period || 1) <= 1;
+    // durante o 1º tempo, qualquer gol no placar é gol do 1º tempo (não depende do minuto vir na fonte)
+    const goals1 = firstHalfLive ? total : m.h1Home + m.h1Away;
+    if (m.state === 'post' || halftime || (m.state === 'in' && m.period >= 2)) {
+      if (total === 0) return { status: 'red', now: 0 };
+      if (!m.reliable) return null; // a fonte não diz o minuto dos gols → não dá para afirmar o resultado
+      return { status: goals1 > 0 ? 'green' : 'red', now: goals1 };
+    }
     if (m.state !== 'in') return null;
     if (goals1 > 0) return { status: 'green', now: goals1, p: 1 };
     const minute = Math.min(45, liveMinute(m));
@@ -362,7 +383,8 @@ function liveProb(mk, m, p, prob) {
     return { status: 'live', now: 0, minute, p: 1 - Math.exp(-lamFull * (Math.max(0, 45 - minute) + 2) / 45) };
   }
   const [a, b] = M.get(m);
-  const known = M.known(m) || (a != null && b != null);
+  // jogo encerrado: só com dado confiável (sem prorrogação etc.); ao vivo: o que a fonte já marcou
+  const known = m.state === 'post' ? M.known(m) : (a != null && b != null && (mk !== 'cards' || cardLeagues.has(m.league)));
   const now = known ? a + b : null;
   if (m.state === 'post') return now == null ? null : { status: now > M.line ? 'green' : 'red', now };
   if (m.state !== 'in') return null;
@@ -374,6 +396,7 @@ function liveProb(mk, m, p, prob) {
 }
 
 // ---------- jogos de hoje / próximos ----------
+let lastMerge = 0;
 async function currentMatches() {
   const today = new Date();
   const out = [];
@@ -381,15 +404,19 @@ async function currentMatches() {
     const evs = await fetchDay(ymd(addDays(today, n)), n <= 0 ? 25000 : 10 * 60000);
     for (const e of evs) out.push(e);
   });
-  // jogos que terminaram entram no histórico
-  const finished = out.filter((e) => e.state === 'post' && !historyIds.has(e.id));
-  if (finished.length && loading.ready) setHistory(finished);
+  // jogos que terminaram entram no histórico (no máximo a cada 30 min, para não pesar no servidor)
+  if (loading.ready && Date.now() - lastMerge > 30 * 60000) {
+    const finished = out.filter((e) => e.state === 'post' && e.done && !historyIds.has(e.id));
+    if (finished.length) setHistory(finished, { recalcBacktest: false });
+    lastMerge = Date.now();
+  }
 
   const now = Date.now();
   const seen = new Set();
   const list = [];
   for (const m of out) {
     if (seen.has(m.id)) continue; seen.add(m.id);
+    if (m.state === 'post' && !m.done) continue; // adiado, cancelado, abandonado
     const t = new Date(m.date).getTime();
     const relevant = m.state === 'in' || (m.state === 'pre' && t < now + 3 * 86400000) ||
       (m.state === 'post' && now - t < 6 * 3600000);
@@ -457,4 +484,4 @@ function send(res, code, obj) {
 }
 
 if (require.main === module) startServer();
-module.exports = { loadHistory, predict, statusPayload, getBacktest: () => backtest, MARKETS };
+module.exports = { DATA_VERSION, loadHistory, predict, statusPayload, getBacktest: () => backtest, MARKETS };

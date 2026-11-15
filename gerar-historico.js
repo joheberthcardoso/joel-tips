@@ -2,7 +2,7 @@
 // Rode: node gerar-historico.js
 const fs = require('fs');
 const path = require('path');
-const VERSION = 3; // igual ao DATA_VERSION do server.js
+const { DATA_VERSION: VERSION } = require('./server.js'); // sempre a mesma versão do servidor
 const dir = path.join(__dirname, 'cache');
 const days = {};
 for (const f of fs.readdirSync(dir)) {
@@ -10,4 +10,4 @@ for (const f of fs.readdirSync(dir)) {
   if (m) days[m[1]] = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
 }
 fs.writeFileSync(path.join(__dirname, 'historico.json'), JSON.stringify({ v: VERSION, days }));
-console.log(`historico.json criado com ${Object.keys(days).length} dias.`);
+console.log(`historico.json criado com ${Object.keys(days).length} dias (versão ${VERSION}).`);

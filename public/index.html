@@ -109,6 +109,16 @@
   .skel { height: 120px; border-radius: var(--r); background: linear-gradient(90deg, var(--card) 0%, var(--card-h) 50%, var(--card) 100%); background-size: 200% 100%; animation: sh 1.2s infinite; }
   @keyframes sh { to { background-position: -200% 0; } }
 
+  .bet { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    background: var(--y); color: #111; border: 0; border-radius: 10px; padding: 11px 14px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .bet b { font-weight: 900; }
+  .bet:hover { background: var(--y2); }
+  .bet:active { transform: scale(.99); }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 140%); width: min(520px, calc(100% - 32px)); z-index: 50;
+    background: #1d1d23; color: var(--text); border: 1px solid var(--y-line); border-radius: 12px; padding: 12px 14px; font-size: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .5); transition: transform .25s; }
+  .toast.show { transform: translate(-50%, 0); }
+  .toast b { color: var(--y); }
   footer { margin: 36px 0 30px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); }
   footer p { margin: 0 0 8px; }
   footer .age { display: inline-block; border: 1px solid var(--line2); border-radius: 6px; padding: 1px 6px; font-weight: 800; color: var(--muted); margin-right: 6px; }
@@ -164,9 +174,10 @@
 
   <footer>
     <p><span class="age">+18</span>Nenhum palpite é garantido — nem o melhor modelo prevê o futuro. A porcentagem foi ajustada pelo que realmente aconteceu em milhares de jogos: se diz 85%, em média 85 de cada 100 jogos parecidos bateram — e 15 não.</p>
-    <p>Use como análise, não como certeza. Se apostar, só com dinheiro que você pode perder. Dados: placares públicos ESPN.</p>
+    <p>Use como análise, não como certeza. Se apostar, só com dinheiro que você pode perder. Dados: placares públicos ESPN. O botão br365 abre um site externo.</p>
   </footer>
 </main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
   const MK = {
@@ -237,7 +248,8 @@
 
   function fillLeagues() {
     const sel = $('#league'), cur = sel.value;
-    const leagues = [...new Map(data.filter((g) => passes(g, market)).map((g) => [g.league, g.leagueName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    // agrupa pelo nome (a fonte às vezes tem a mesma liga com dois códigos)
+    const leagues = [...new Set(data.filter((g) => passes(g, market)).map((g) => g.leagueName))].sort((a, b) => a.localeCompare(b)).map((n) => [n, n]);
     sel.innerHTML = '<option value="">Todas as ligas</option>' + leagues.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
     sel.value = leagues.some(([k]) => k === cur) ? cur : '';
   }
@@ -255,7 +267,7 @@
     if (!status || !status.loading.ready) return;
     let games = data.filter((g) => {
       if (!passes(g, market)) return false;
-      if (lg && g.league !== lg) return false;
+      if (lg && g.leagueName !== lg) return false;
       if (q && !(g.home.name + ' ' + g.away.name).toLowerCase().includes(q)) return false;
       if (w === 'live' && g.state !== 'in') return false;
       if (w === 'pre' && g.state !== 'pre') return false;
@@ -318,10 +330,44 @@
         <span class="chip">${M.next}: <b>${pct(mk.pNext)}</b></span>
         <span class="chip">Base: <b>${mk.nHome}+${mk.nAway}</b> jogos</span>
       </div>
+      <button class="bet" type="button" data-team="${esc(g.home.name)}" data-vs="${esc(g.away.name)}">
+        Ver jogo na <b>br365</b> <span aria-hidden="true">↗</span>
+      </button>
     </article>`;
   }
 
   $('#when').onchange = render; $('#league').onchange = render; $('#q').oninput = render;
+
+  // ---------- br365 ----------
+  // A br365 não tem endereço de busca: abrimos o site e copiamos o nome do time para colar na lupa de lá.
+  const BR365 = 'https://br365.io/sports';
+  let toastTimer;
+  function toast(html) {
+    const t = $('#toast');
+    t.innerHTML = html; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 6000);
+  }
+  // cópia síncrona: precisa acontecer dentro do toque, ANTES de abrir a outra aba (senão o celular bloqueia)
+  function copySync(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (_) { return false; }
+  }
+  $('#list').addEventListener('click', (e) => {
+    const b = e.target.closest('.bet');
+    if (!b) return;
+    const team = b.dataset.team, vs = b.dataset.vs;
+    let copied = copySync(team);
+    if (!copied && navigator.clipboard) { navigator.clipboard.writeText(team).catch(() => {}); copied = true; }
+    toast(copied
+      ? `✔ <b>${esc(team)}</b> copiado. Na br365, toque na 🔍 <b>Pesquisar</b>, cole e escolha <b>${esc(team)} x ${esc(vs)}</b>.`
+      : `Na br365, toque na 🔍 <b>Pesquisar</b> e digite <b>${esc(team)}</b>.`);
+    const win = window.open(BR365, '_blank');
+    if (win) { try { win.opener = null; } catch (_) {} } else { setTimeout(() => { location.href = BR365; }, 1500); }
+  });
 
   // ---------- dados ----------
   async function loadStatus() {
