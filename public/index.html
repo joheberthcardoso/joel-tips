@@ -109,11 +109,18 @@
   .skel { height: 120px; border-radius: var(--r); background: linear-gradient(90deg, var(--card) 0%, var(--card-h) 50%, var(--card) 100%); background-size: 200% 100%; animation: sh 1.2s infinite; }
   @keyframes sh { to { background-position: -200% 0; } }
 
-  .bet { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
-    background: var(--y); color: #111; border: 0; border-radius: 10px; padding: 11px 14px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bet, .copy { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0;
+    border-radius: 10px; padding: 11px 10px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .bet { background: var(--y); color: #111; border: 0; }
+  .copy { background: var(--bg2); color: var(--text); border: 1px solid var(--y-line); }
+  .copy { white-space: nowrap; overflow: hidden; }
+  .copy b { overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--y); }
   .bet b { font-weight: 900; }
   .bet:hover { background: var(--y2); }
-  .bet:active { transform: scale(.99); }
+  .copy:hover { border-color: var(--y); }
+  .copy.ok { border-color: var(--green); }
+  .bet:active, .copy:active { transform: scale(.98); }
   .toast { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 140%); width: min(520px, calc(100% - 32px)); z-index: 50;
     background: #1d1d23; color: var(--text); border: 1px solid var(--y-line); border-radius: 12px; padding: 12px 14px; font-size: 14px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, .5); transition: transform .25s; }
@@ -330,9 +337,10 @@
         <span class="chip">${M.next}: <b>${pct(mk.pNext)}</b></span>
         <span class="chip">Base: <b>${mk.nHome}+${mk.nAway}</b> jogos</span>
       </div>
-      <button class="bet" type="button" data-team="${esc(g.home.name)}" data-vs="${esc(g.away.name)}">
-        Ver jogo na <b>br365</b> <span aria-hidden="true">↗</span>
-      </button>
+      <div class="actions">
+        <button class="copy" type="button" data-team="${esc(g.home.name)}" data-vs="${esc(g.away.name)}">📋 Copiar <b>${esc(g.home.name)}</b></button>
+        <button class="bet" type="button" data-team="${esc(g.home.name)}" data-vs="${esc(g.away.name)}">Abrir <b>br365</b> <span aria-hidden="true">↗</span></button>
+      </div>
     </article>`;
   }
 
@@ -357,6 +365,21 @@
     } catch (_) { return false; }
   }
   $('#list').addEventListener('click', (e) => {
+    const c = e.target.closest('.copy');
+    if (c) {
+      const team = c.dataset.team, vs = c.dataset.vs;
+      let ok = copySync(team);
+      if (!ok && navigator.clipboard) { navigator.clipboard.writeText(team).catch(() => {}); ok = true; }
+      if (ok) {
+        const old = c.innerHTML;
+        c.classList.add('ok'); c.innerHTML = '✔ Copiado!';
+        setTimeout(() => { c.classList.remove('ok'); c.innerHTML = old; }, 2000);
+        toast(`✔ <b>${esc(team)}</b> copiado. Na br365, toque na 🔍 <b>Pesquisar</b>, cole e escolha <b>${esc(team)} x ${esc(vs)}</b>.`);
+      } else {
+        toast(`Não deu para copiar neste celular. Na br365, pesquise por <b>${esc(team)}</b>.`);
+      }
+      return;
+    }
     const b = e.target.closest('.bet');
     if (!b) return;
     const team = b.dataset.team, vs = b.dataset.vs;

@@ -465,7 +465,8 @@ function startServer() {
       }
       const file = path.join(PUBLIC_DIR, url.pathname === '/' ? 'index.html' : path.normalize(url.pathname));
       if (!file.startsWith(PUBLIC_DIR) || !fs.existsSync(file)) { res.writeHead(404); return res.end('404'); }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+      // no-cache: o celular sempre pega a versão nova da página depois de uma atualização
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
       fs.createReadStream(file).pipe(res);
     } catch (e) {
       console.error(e);
