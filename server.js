@@ -1,5 +1,5 @@
-// JOEL TIPS — probabilidade de gol no 1º tempo (HT), todas as ligas.
-// Dados: placares públicos da ESPN (sem chave). Rode: node server.js  →  http://localhost:3100
+// JOEL TIPS — probabilidades de: gol no 1º tempo (+0.5 HT), +2.5 cartões e +8.5 escanteios (partida toda).
+// Todas as ligas. Dados: placares públicos da ESPN (sem chave). Rode: node server.js  →  http://localhost:3100
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -7,6 +7,8 @@ const path = require('path');
 const PORT = process.env.PORT || 3100;
 const CACHE_DIR = path.join(__dirname, 'cache');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const SNAPSHOT = path.join(__dirname, 'historico.json');
+const DATA_VERSION = 2;        // muda quando o formato salvo muda (força baixar de novo)
 const HISTORY_DAYS = 240;      // quanto histórico usar
 const RECENT_GAMES = 20;       // últimos N jogos de cada time
 const SHRINK = 4;              // "jogos fantasmas" com a média da liga (evita exagero com poucos jogos)
@@ -26,6 +28,25 @@ const PT = {
   'mex.1': 'Liga MX', 'fifa.friendly': 'Amistosos de seleções', 'fifa.worldq.uefa': 'Eliminatórias Europa',
   'fifa.worldq.conmebol': 'Eliminatórias América do Sul', 'club.friendly': 'Amistosos de clubes',
 };
+
+// ---------- mercados ----------
+// get(g) -> [valor do mandante, valor do visitante]; known(g) -> o jogo tem esse dado?
+const MARKETS = {
+  ht: {
+    label: 'Gol no 1º tempo', line: 0.5, full: false,
+    get: (g) => [g.h1Home, g.h1Away], known: (g) => g.reliable,
+  },
+  cards: {
+    label: '+2.5 cartões', line: 2.5, full: true,
+    get: (g) => [g.cardsH, g.cardsA], known: (g) => g.cardsH != null && cardLeagues.has(g.league),
+  },
+  corners: {
+    label: '+8.5 escanteios', line: 8.5, full: true,
+    get: (g) => [g.cornersH, g.cornersA], known: (g) => g.cornersH != null && g.cornersA != null,
+  },
+};
+const MKEYS = Object.keys(MARKETS);
+let cardLeagues = new Set(); // ligas em que a fonte registra cartões de verdade
 
 fs.mkdirSync(CACHE_DIR, { recursive: true });
 
@@ -52,8 +73,15 @@ async function pool(items, n, fn) {
   }));
 }
 
+// P(X > line) para X ~ Poisson(lam)
+function pOver(lam, line) {
+  let p = Math.exp(-lam), cdf = p;
+  for (let k = 1; k <= Math.floor(line); k++) { p *= lam / k; cdf += p; }
+  return Math.max(0, 1 - cdf);
+}
+
 // ---------- leitura dos jogos ----------
-function goalMinute(det) {
+function detMinute(det) {
   const dv = det.clock && det.clock.displayValue;
   if (dv) { const m = parseInt(dv, 10); if (!isNaN(m)) return m; }
   return det.clock ? Math.ceil(det.clock.value / 60) : null;
@@ -70,24 +98,40 @@ function parseEvent(ev) {
   const link = (ev.links || []).map((l) => l.href).find((h) => /\/league\//.test(h || ''));
   const slug = link ? link.split('/league/')[1].split(/[/?#]/)[0] : (ev.uid.match(/l:(\d+)/) || [])[1] || '?';
   const note = c.altGameNote ? c.altGameNote.split(',')[0].trim() : null; // tira "Group C2", "Semifinals"...
-  const name = PT[slug] || leagueNames[slug] || note || slug;
   if (!PT[slug] && note && !leagueNames[slug]) leagueNames[slug] = note;
+  const name = PT[slug] || leagueNames[slug] || note || slug;
   const st = ev.status || c.status || {};
-  const goals = (c.details || []).filter((d) => d.scoringPlay && !d.shootout);
+  const det = c.details || [];
+  const goals = det.filter((d) => d.scoringPlay && !d.shootout);
   let h1Home = 0, h1Away = 0;
   for (const g of goals) {
-    const m = goalMinute(g);
+    const m = detMinute(g);
     if (m == null || m > 45) continue;
     if (g.team && g.team.id === home.team.id) h1Home++; else h1Away++;
   }
+  // cartões: amarelos + vermelhos (cada evento conta 1), só tempo normal
+  let cardsH = null, cardsA = null;
+  if (det.length) {
+    cardsH = 0; cardsA = 0;
+    for (const d of det) {
+      if (!(d.yellowCard || d.redCard) || d.shootout) continue;
+      if (d.team && d.team.id === home.team.id) cardsH++; else cardsA++;
+    }
+  }
+  const stat = (t, name) => {
+    const s = (t.statistics || []).find((x) => x.name === name);
+    const v = s ? parseFloat(s.displayValue) : NaN;
+    return isNaN(v) ? null : v;
+  };
   const scoreH = parseInt(home.score, 10) || 0, scoreA = parseInt(away.score, 10) || 0;
   return {
     id: ev.id, league: slug, leagueName: name, date: ev.date, state: st.type && st.type.state,
     statusName: st.type && st.type.name, clock: st.displayClock, period: st.period,
     home: { id: home.team.id, name: home.team.shortDisplayName || home.team.displayName, logo: home.team.logo },
     away: { id: away.team.id, name: away.team.shortDisplayName || away.team.displayName, logo: away.team.logo },
-    scoreH, scoreA, h1Home, h1Away,
-    // só confiamos no jogo se os gols listados batem com o placar
+    scoreH, scoreA, h1Home, h1Away, cardsH, cardsA,
+    cornersH: stat(home, 'wonCorners'), cornersA: stat(away, 'wonCorners'),
+    // só confiamos nos gols se os listados batem com o placar
     reliable: goals.length === scoreH + scoreA,
   };
 }
@@ -96,12 +140,11 @@ function parseEvent(ev) {
 const mem = new Map(); // day -> {at, events}
 
 async function fetchDay(day, ttlMs) {
-  const file = path.join(CACHE_DIR, `all_${day}.json`);
+  const file = path.join(CACHE_DIR, `v${DATA_VERSION}_${day}.json`);
   const m = mem.get(day);
   if (m && (ttlMs === Infinity || Date.now() - m.at < ttlMs)) return m.events;
   if (ttlMs === Infinity && fs.existsSync(file)) {
     const events = JSON.parse(fs.readFileSync(file, 'utf8'));
-    for (const e of events) if (!PT[e.league] && !leagueNames[e.league]) leagueNames[e.league] = e.leagueName.split(',')[0].trim();
     mem.set(day, { at: Date.now(), events });
     return events;
   }
@@ -114,28 +157,31 @@ async function fetchDay(day, ttlMs) {
 }
 
 // ---------- histórico + índices ----------
-let history = [];                 // jogos encerrados e confiáveis, por data
+let history = [];                 // jogos encerrados, por data
 let historyIds = new Set();
 let byTeam = new Map();           // teamId -> jogos (por data)
-let leagueIdx = new Map();        // league -> {dates, cumGoals, cumHit}
-let globalIdx = null;
+let leagueIdx = {};               // mercado -> Map(liga -> índice)
+let globalIdx = {};               // mercado -> índice
 let loading = { done: 0, total: 0, ready: false };
-let backtest = null;
+let backtest = {};                // mercado -> resultado
+let leagueCount = 0;
 
 async function loadHistory() {
   const today = new Date();
   const days = [];
   for (let n = HISTORY_DAYS; n >= 2; n--) days.push(ymd(addDays(today, -n)));
   loading.total = days.length;
-  // historico.json = todos os dias já baixados num arquivo só (para hospedar sem baixar tudo de novo)
-  const snap = path.join(__dirname, 'historico.json');
-  if (fs.existsSync(snap)) {
-    const byDay = JSON.parse(fs.readFileSync(snap, 'utf8'));
-    for (const [day, events] of Object.entries(byDay)) {
-      if (mem.has(day)) continue;
-      for (const e of events) if (!PT[e.league] && !leagueNames[e.league]) leagueNames[e.league] = e.leagueName.split(',')[0].trim();
-      mem.set(day, { at: Date.now(), events });
-    }
+  // historico.json = dias já baixados num arquivo só (para hospedar sem baixar tudo de novo)
+  if (fs.existsSync(SNAPSHOT)) {
+    try {
+      const snap = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
+      if (snap.v === DATA_VERSION) {
+        for (const [day, events] of Object.entries(snap.days)) {
+          for (const e of events) if (!PT[e.league] && !leagueNames[e.league]) leagueNames[e.league] = e.leagueName;
+          mem.set(day, { at: Date.now(), events });
+        }
+      }
+    } catch (e) { console.error('historico.json inválido:', e.message); }
   }
   const all = [];
   await pool(days, 6, async (day) => {
@@ -144,23 +190,25 @@ async function loadHistory() {
   });
   setHistory(all);
   loading.ready = true;
-  console.log(`Histórico pronto: ${history.length} jogos de ${leagueIdx.size} competições.`);
+  console.log(`Histórico pronto: ${history.length} jogos de ${leagueCount} competições.`);
 }
 
-function buildIdx(games) {
-  const dates = [], cumGoals = [0], cumHit = [0];
+function buildIdx(games, mk) {
+  const M = MARKETS[mk];
+  const dates = [], cum = [0], cumHit = [0];
   for (const g of games) {
+    if (!M.known(g)) continue;
+    const [a, b] = M.get(g);
     dates.push(g.date);
-    const t = g.h1Home + g.h1Away;
-    cumGoals.push(cumGoals[cumGoals.length - 1] + t);
-    cumHit.push(cumHit[cumHit.length - 1] + (t > 0 ? 1 : 0));
+    cum.push(cum[cum.length - 1] + a + b);
+    cumHit.push(cumHit[cumHit.length - 1] + (a + b > M.line ? 1 : 0));
   }
-  return { dates, cumGoals, cumHit };
+  return { dates, cum, cumHit };
 }
 
 function setHistory(list) {
   const map = new Map(history.map((e) => [e.id, e]));
-  for (const e of list) if (e.state === 'post' && e.reliable) map.set(e.id, e);
+  for (const e of list) if (e.state === 'post') map.set(e.id, e);
   history = [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
   historyIds = new Set(history.map((e) => e.id));
   byTeam = new Map(); const byLeague = new Map();
@@ -168,9 +216,18 @@ function setHistory(list) {
     for (const id of [g.home.id, g.away.id]) { if (!byTeam.has(id)) byTeam.set(id, []); byTeam.get(id).push(g); }
     if (!byLeague.has(g.league)) byLeague.set(g.league, []); byLeague.get(g.league).push(g);
   }
-  leagueIdx = new Map([...byLeague].map(([k, v]) => [k, buildIdx(v)]));
-  globalIdx = buildIdx(history);
-  backtest = runBacktest();
+  leagueCount = byLeague.size;
+  // liga "tem cartões" se a fonte registra cartão na maioria dos jogos dela (senão os zeros são falta de dado)
+  cardLeagues = new Set();
+  for (const [lg, games] of byLeague) {
+    const withDet = games.filter((g) => g.cardsH != null);
+    if (withDet.length >= 10 && withDet.filter((g) => g.cardsH + g.cardsA > 0).length / withDet.length >= 0.85) cardLeagues.add(lg);
+  }
+  for (const mk of MKEYS) {
+    leagueIdx[mk] = new Map([...byLeague].map(([k, v]) => [k, buildIdx(v, mk)]));
+    globalIdx[mk] = buildIdx(history, mk);
+    backtest[mk] = runBacktest(mk);
+  }
 }
 
 // quantos itens de idx têm data < beforeDate (busca binária)
@@ -181,32 +238,38 @@ function countBefore(idx, beforeDate) {
 }
 
 // ---------- modelo ----------
-function teamStats(teamId, beforeDate) {
+function teamStats(mk, teamId, beforeDate) {
+  const M = MARKETS[mk];
   const games = byTeam.get(teamId) || [];
   const out = [];
   for (let i = games.length - 1; i >= 0 && out.length < RECENT_GAMES; i--) {
     const g = games[i];
-    if (g.date >= beforeDate) continue;
-    if (g.home.id === teamId) out.push({ home: true, gf: g.h1Home, ga: g.h1Away });
-    else out.push({ home: false, gf: g.h1Away, ga: g.h1Home });
+    if (g.date >= beforeDate || !M.known(g)) continue;
+    const [h, a] = M.get(g);
+    if (g.home.id === teamId) out.push({ home: true, f: h, a, t: h + a });
+    else out.push({ home: false, f: a, a: h, t: h + a });
   }
   return out;
 }
 
-function leagueAvg(league, beforeDate) {
-  for (const idx of [leagueIdx.get(league), globalIdx]) {
+const DEFAULTS = { ht: [0.55, 0.7], cards: [2.2, 0.75], corners: [4.8, 0.55] };
+
+function leagueAvg(mk, league, beforeDate) {
+  for (const idx of [leagueIdx[mk] && leagueIdx[mk].get(league), globalIdx[mk]]) {
     if (!idx) continue;
     const n = countBefore(idx, beforeDate);
-    if (n >= 30) return { perTeam: idx.cumGoals[n] / n / 2, hit: idx.cumHit[n] / n };
+    if (n >= 30) return { perTeam: idx.cum[n] / n / 2, hit: idx.cumHit[n] / n };
   }
-  return { perTeam: 0.55, hit: 0.7 };
+  return { perTeam: DEFAULTS[mk][0], hit: DEFAULTS[mk][1] };
 }
 
-function predict(match, beforeDate) {
-  const sh = teamStats(match.home.id, beforeDate);
-  const sa = teamStats(match.away.id, beforeDate);
+function predict(mk, match, beforeDate) {
+  const M = MARKETS[mk];
+  if (mk === 'cards' && !cardLeagues.has(match.league)) return null;
+  const sh = teamStats(mk, match.home.id, beforeDate);
+  const sa = teamStats(mk, match.away.id, beforeDate);
   if (sh.length < MIN_GAMES || sa.length < MIN_GAMES) return null;
-  const L = leagueAvg(match.league, beforeDate);
+  const L = leagueAvg(mk, match.league, beforeDate);
   const mu = Math.max(0.2, L.perTeam);
   const shr = (sum, n, prior) => (sum + SHRINK * prior) / (n + SHRINK);
   // dá peso extra aos jogos no mesmo mando (casa em casa, fora fora)
@@ -216,38 +279,49 @@ function predict(match, beforeDate) {
     if (v.length < 4) return allR;
     return 0.5 * allR + 0.5 * shr(v.reduce((s, x) => s + x[key], 0), v.length, mu);
   };
-  const attH = venueBlend(sh, true, 'gf'), defH = venueBlend(sh, true, 'ga');
-  const attA = venueBlend(sa, false, 'gf'), defA = venueBlend(sa, false, 'ga');
-  const lam = (attH * defA) / mu + (attA * defH) / mu;
-  const pPois = 1 - Math.exp(-lam);
-  const rate = (arr) => shr(arr.filter((x) => x.gf + x.ga > 0).length, arr.length, L.hit);
-  const pEmp = (rate(sh) + rate(sa)) / 2;
+  const attH = venueBlend(sh, true, 'f'), defH = venueBlend(sh, true, 'a');
+  const attA = venueBlend(sa, false, 'f'), defA = venueBlend(sa, false, 'a');
+  const lamH = (attH * defA) / mu, lamA = (attA * defH) / mu;
+  const lam = lamH + lamA;
+  const rate = (arr) => shr(arr.filter((x) => x.t > M.line).length, arr.length, L.hit);
+  const avg = (arr) => arr.reduce((s, x) => s + x.t, 0) / arr.length;
+  const raw = 0.6 * pOver(lam, M.line) + 0.4 * (rate(sh) + rate(sa)) / 2;
   return {
-    raw: 0.6 * pPois + 0.4 * pEmp, lam, p15: 1 - Math.exp(-lam) * (1 + lam),
-    rateHome: rate(sh), rateAway: rate(sa), nHome: sh.length, nAway: sa.length,
+    raw, lam, lamH, lamA, pNext: pOver(lam, M.line + 1),
+    rateHome: rate(sh), rateAway: rate(sa), avgHome: avg(sh), avgAway: avg(sa), nHome: sh.length, nAway: sa.length,
   };
 }
 
-// Teste no passado: cada palpite usa só jogos anteriores; confere se saiu gol no 1º tempo.
-function runBacktest() {
+// Teste no passado, honesto: calibra com os 70% mais antigos e mede o acerto nos 30% mais recentes.
+function runBacktest(mk) {
+  const M = MARKETS[mk];
   const rows = [];
   for (const g of history) {
-    const p = predict(g, g.date);
-    if (p) rows.push({ p: p.raw, hit: g.h1Home + g.h1Away > 0 });
+    if (!M.known(g)) continue;
+    const p = predict(mk, g, g.date);
+    if (!p) continue;
+    const [a, b] = M.get(g);
+    rows.push({ p: p.raw, hit: a + b > M.line });
   }
-  // calibração por faixa de 5%: probabilidade mostrada = o que realmente aconteceu nessa faixa
+  const cut = Math.floor(rows.length * 0.7);
+  const binsTrain = makeBins(rows.slice(0, cut));
+  const test = rows.slice(cut);
+  const thresholds = [0.7, 0.75, 0.8, 0.85, 0.9].map((t) => {
+    const sel = test.filter((r) => calibrate(r.p, binsTrain) >= t);
+    return { t, n: sel.length, acc: sel.length ? sel.filter((r) => r.hit).length / sel.length : null };
+  });
+  const base = test.length ? test.filter((r) => r.hit).length / test.length : null;
+  return { n: rows.length, nTest: test.length, base, bins: makeBins(rows), thresholds };
+}
+
+function makeBins(rows) {
   const bins = {};
   for (const r of rows) {
     const b = Math.min(19, Math.floor(r.p * 20));
     (bins[b] ||= { n: 0, hit: 0 });
     bins[b].n++; bins[b].hit += r.hit;
   }
-  const thresholds = [0.7, 0.75, 0.8, 0.85, 0.9].map((t) => {
-    const sel = rows.filter((r) => calibrate(r.p, bins) >= t);
-    return { t, n: sel.length, acc: sel.length ? sel.filter((r) => r.hit).length / sel.length : null };
-  });
-  const base = rows.length ? rows.filter((r) => r.hit).length / rows.length : null;
-  return { n: rows.length, base, bins, thresholds };
+  return bins;
 }
 
 function calibrate(raw, bins) {
@@ -257,20 +331,35 @@ function calibrate(raw, bins) {
   return (b.hit + k * raw) / (b.n + k);
 }
 
-// Ao vivo: chance de sair gol no tempo que falta do 1º tempo
-function liveProb(match, lamFull) {
-  const goals1 = match.h1Home + match.h1Away;
-  if (match.state === 'post' || (match.state === 'in' && match.period >= 2) || match.statusName === 'STATUS_HALFTIME') {
-    return { status: goals1 > 0 ? 'green' : 'red', p05: goals1 > 0 ? 1 : 0, p15: goals1 > 1 ? 1 : 0 };
+// ---------- ao vivo ----------
+function liveMinute(m) {
+  const base = parseInt(m.clock, 10);
+  if (!isNaN(base)) return base;
+  return m.period >= 2 ? 46 : 0;
+}
+
+function liveProb(mk, m, p, prob) {
+  const M = MARKETS[mk];
+  const halftime = m.statusName === 'STATUS_HALFTIME';
+  if (mk === 'ht') {
+    const goals1 = m.h1Home + m.h1Away;
+    if (m.state === 'post' || halftime || (m.state === 'in' && m.period >= 2)) return { status: goals1 > 0 ? 'green' : 'red', now: goals1 };
+    if (m.state !== 'in') return null;
+    if (goals1 > 0) return { status: 'green', now: goals1, p: 1 };
+    const minute = Math.min(45, liveMinute(m));
+    const lamFull = -Math.log(1 - Math.min(prob, 0.995)); // usa a chance calibrada
+    return { status: 'live', now: 0, minute, p: 1 - Math.exp(-lamFull * (Math.max(0, 45 - minute) + 2) / 45) };
   }
-  if (match.state !== 'in') return null;
-  const minute = Math.min(45, parseInt(match.clock, 10) || 0);
-  const remaining = Math.max(0, 45 - minute) + 2; // + acréscimos
-  const lam = lamFull * (remaining / 45);
-  const p0 = Math.exp(-lam), p1 = lam * p0;
-  const p05 = goals1 >= 1 ? 1 : 1 - p0;
-  const p15 = goals1 >= 2 ? 1 : goals1 === 1 ? 1 - p0 : 1 - p0 - p1;
-  return { status: goals1 > 0 ? 'green' : 'live', minute, p05, p15 };
+  const [a, b] = M.get(m);
+  const known = M.known(m) || (a != null && b != null);
+  const now = known ? a + b : null;
+  if (m.state === 'post') return now == null ? null : { status: now > M.line ? 'green' : 'red', now };
+  if (m.state !== 'in') return null;
+  if (now == null) return { status: 'live', now: null, p: prob };
+  if (now > M.line) return { status: 'green', now, p: 1 };
+  const minute = Math.min(90, liveMinute(m));
+  const rem = (Math.max(0, 90 - minute) + 4) / 94;
+  return { status: 'live', now, minute, p: pOver(p.lam * rem, M.line - now) };
 }
 
 // ---------- jogos de hoje / próximos ----------
@@ -282,11 +371,10 @@ async function currentMatches() {
     for (const e of evs) out.push(e);
   });
   // jogos que terminaram entram no histórico
-  const finished = out.filter((e) => e.state === 'post' && e.reliable && !historyIds.has(e.id));
+  const finished = out.filter((e) => e.state === 'post' && !historyIds.has(e.id));
   if (finished.length && loading.ready) setHistory(finished);
 
   const now = Date.now();
-  const bins = backtest && backtest.bins;
   const seen = new Set();
   const list = [];
   for (const m of out) {
@@ -295,15 +383,22 @@ async function currentMatches() {
     const relevant = m.state === 'in' || (m.state === 'pre' && t < now + 3 * 86400000) ||
       (m.state === 'post' && now - t < 6 * 3600000);
     if (!relevant) continue;
-    const p = predict(m, m.date);
-    if (!p) continue;
-    const prob = calibrate(p.raw, bins);
-    list.push({
-      ...m, prob, p15: p.p15, lam: p.lam, rateHome: p.rateHome, rateAway: p.rateAway,
-      nHome: p.nHome, nAway: p.nAway, live: liveProb(m, -Math.log(1 - Math.min(prob, 0.995))),
-    });
+    const markets = {};
+    for (const mk of MKEYS) {
+      const p = predict(mk, m, m.date);
+      if (!p) continue;
+      const prob = calibrate(p.raw, backtest[mk] && backtest[mk].bins);
+      markets[mk] = {
+        prob, lam: p.lam, pNext: p.pNext, rateHome: p.rateHome, rateAway: p.rateAway,
+        avgHome: p.avgHome, avgAway: p.avgAway, nHome: p.nHome, nAway: p.nAway,
+        live: liveProb(mk, m, p, prob),
+      };
+    }
+    if (!Object.keys(markets).length) continue;
+    const { reliable, ...rest } = m;
+    list.push({ ...rest, markets });
   }
-  list.sort((a, b) => (a.state === 'in' ? 0 : 1) - (b.state === 'in' ? 0 : 1) || b.prob - a.prob);
+  list.sort((a, b) => a.date.localeCompare(b.date));
   return list;
 }
 
@@ -311,37 +406,44 @@ async function currentMatches() {
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 let cached = { at: 0, data: null };
 
-function startServer() {
-http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://x');
-  try {
-    if (url.pathname === '/api/status') {
-      return send(res, 200, { loading, backtest: backtest && { n: backtest.n, base: backtest.base, thresholds: backtest.thresholds, ligas: leagueIdx.size } });
-    }
-    if (url.pathname === '/api/jogos') {
-      if (!loading.ready) return send(res, 200, { loading, jogos: [] });
-      if (Date.now() - cached.at > 15000) cached = { at: Date.now(), data: await currentMatches() };
-      return send(res, 200, { loading, jogos: cached.data, atualizado: new Date(cached.at).toISOString() });
-    }
-    const file = path.join(PUBLIC_DIR, url.pathname === '/' ? 'index.html' : path.normalize(url.pathname));
-    if (!file.startsWith(PUBLIC_DIR) || !fs.existsSync(file)) { res.writeHead(404); return res.end('404'); }
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
-    fs.createReadStream(file).pipe(res);
-  } catch (e) {
-    console.error(e);
-    send(res, 500, { erro: e.message });
+function statusPayload() {
+  const bt = {};
+  for (const mk of MKEYS) {
+    const b = backtest[mk];
+    if (b) bt[mk] = { n: b.n, nTest: b.nTest, base: b.base, thresholds: b.thresholds };
   }
-}).listen(PORT, () => {
-  console.log(`JOEL TIPS — abra no navegador: http://localhost:${PORT}`);
-  console.log('Carregando histórico (a 1ª vez demora alguns minutos; depois fica salvo em /cache)...');
-  loadHistory();
-});
+  return { loading, ligas: leagueCount, markets: Object.fromEntries(MKEYS.map((k) => [k, { label: MARKETS[k].label, line: MARKETS[k].line }])), backtest: bt };
 }
 
-if (require.main === module) startServer();
-module.exports = { loadHistory, predict, getState: () => ({ history, leagueIdx }), leagueAvg, teamStats };
+function startServer() {
+  http.createServer(async (req, res) => {
+    const url = new URL(req.url, 'http://x');
+    try {
+      if (url.pathname === '/api/status') return send(res, 200, statusPayload());
+      if (url.pathname === '/api/jogos') {
+        if (!loading.ready) return send(res, 200, { loading, jogos: [] });
+        if (Date.now() - cached.at > 15000) cached = { at: Date.now(), data: await currentMatches() };
+        return send(res, 200, { loading, jogos: cached.data, atualizado: new Date(cached.at).toISOString() });
+      }
+      const file = path.join(PUBLIC_DIR, url.pathname === '/' ? 'index.html' : path.normalize(url.pathname));
+      if (!file.startsWith(PUBLIC_DIR) || !fs.existsSync(file)) { res.writeHead(404); return res.end('404'); }
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+      fs.createReadStream(file).pipe(res);
+    } catch (e) {
+      console.error(e);
+      send(res, 500, { erro: e.message });
+    }
+  }).listen(PORT, () => {
+    console.log(`JOEL TIPS — abra no navegador: http://localhost:${PORT}`);
+    console.log('Carregando histórico (a 1ª vez demora alguns minutos; depois fica salvo em /cache)...');
+    loadHistory();
+  });
+}
 
 function send(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
 }
+
+if (require.main === module) startServer();
+module.exports = { loadHistory, predict, statusPayload, getBacktest: () => backtest, MARKETS };

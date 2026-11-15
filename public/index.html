@@ -2,219 +2,355 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 <title>JOEL TIPS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23FFD000'/><text x='16' y='23' font-size='18' font-family='Arial' font-weight='900' text-anchor='middle' fill='%23111'>J</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0b0d; --card: #151518; --card2: #1c1c21; --line: #2a2a31; --text: #f2f2f2; --muted: #9a9aa3;
-    --yellow: #FFD000; --yellow-dim: #3a3000; --yellow-soft: #fff1a6;
-    --green: #22c55e; --red: #ef4444; --mid: #c9a227; --low: #6b6b74;
+    --bg: #08080a; --bg2: #0f0f12; --card: #141418; --card-h: #18181d; --line: #24242b; --line2: #2f2f38;
+    --text: #f4f4f5; --muted: #9b9ba6; --dim: #6b6b76;
+    --y: #FFD000; --y2: #ffe466; --y-bg: rgba(255, 208, 0, .08); --y-line: rgba(255, 208, 0, .35);
+    --green: #22c55e; --green-bg: rgba(34, 197, 94, .12); --red: #ef4444; --red-bg: rgba(239, 68, 68, .12);
+    --mid: #c9a227;
+    --r: 14px;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .top { border-bottom: 3px solid var(--yellow); background: #000; }
-  .top-in { max-width: 1000px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-mark { width: 40px; height: 40px; border-radius: 9px; background: var(--yellow); color: #111; display: grid; place-items: center; font-weight: 900; font-size: 22px; }
-  .logo-name { font-size: 26px; font-weight: 900; letter-spacing: 1px; }
-  .logo-name span { color: var(--yellow); }
-  .tagline { color: var(--muted); font-size: 13px; margin-left: auto; }
-  main { max-width: 1000px; margin: 0 auto; padding: 8px 16px 40px; }
-  .hero { margin: 18px 0 6px; }
-  .hero h1 { margin: 0; font-size: 20px; }
-  .hero h1 em { font-style: normal; color: var(--yellow); }
-  .hero p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 12px 0; }
-  .panel h2 { font-size: 14px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .5px; color: var(--yellow); }
-  .sub { color: var(--muted); font-size: 13px; }
-  .acc { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
-  .acc div { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; }
-  .acc b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
-  .acc small { color: var(--muted); }
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .chip, .filters select, .filters input { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 20px; padding: 7px 13px; font: inherit; font-size: 13px; }
-  .chip { cursor: pointer; }
-  .chip:hover { border-color: var(--yellow); }
-  .chip.on { background: var(--yellow); border-color: var(--yellow); color: #111; font-weight: 700; }
-  .filters input { flex: 1; min-width: 160px; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+  /* topo */
+  .top { position: sticky; top: 0; z-index: 20; background: rgba(0, 0, 0, .88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .top-in { display: flex; align-items: center; gap: 14px; height: 62px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+  .logo-mark { width: 36px; height: 36px; border-radius: 9px; background: var(--y); color: #111; display: grid; place-items: center; font-weight: 900; font-size: 20px; box-shadow: 0 0 24px rgba(255, 208, 0, .35); }
+  .logo-name { font-size: 21px; font-weight: 900; letter-spacing: .5px; }
+  .logo-name span { color: var(--y); }
+  .live-pill { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(34, 197, 94, .6); animation: ping 2s infinite; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .6); } 80%, 100% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } }
+
+  /* abas */
+  .tabs-bar { border-bottom: 1px solid var(--line); background: var(--bg2); position: sticky; top: 62px; z-index: 19; }
+  .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 1 0 auto; background: none; border: 0; color: var(--muted); font: inherit; font-weight: 700; font-size: 14px; padding: 14px 16px 12px; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--y); border-bottom-color: var(--y); }
+  .tab .short { display: none; }
+  .tab .n { font-size: 11px; background: var(--line); color: var(--text); padding: 1px 7px; border-radius: 10px; font-weight: 700; }
+  .tab.on .n { background: var(--y); color: #111; }
+
+  /* hero */
+  .hero { padding: 26px 0 8px; }
+  .eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--y); }
+  .hero h1 { font-size: clamp(22px, 4.5vw, 32px); line-height: 1.15; margin: 6px 0 8px; font-weight: 900; letter-spacing: -.5px; }
+  .hero p { margin: 0; color: var(--muted); max-width: 680px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 20px 0 6px; }
+  .stat { background: linear-gradient(180deg, var(--card), var(--bg2)); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+  .stat .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .stat .v { font-size: 28px; font-weight: 900; color: var(--y); font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px; }
+  .stat .s { font-size: 12px; color: var(--dim); }
+  .stat.base .v { color: var(--text); }
+  .proof { font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+  /* filtros */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0 12px; }
+  .seg { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+  .seg button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+  .seg button.on { background: var(--y); color: #111; }
+  .filters select, .filters input { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; font: inherit; font-size: 13px; outline: none; }
+  .filters select:focus, .filters input:focus { border-color: var(--y-line); }
+  .filters input { flex: 1; min-width: 150px; }
   .filters select { max-width: 100%; }
-  .count { margin: 4px 2px 10px; font-size: 13px; color: var(--muted); }
-  .count b { color: var(--yellow); }
-  .list { display: grid; gap: 8px; }
-  .game { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center; }
-  .game.top { border-color: var(--yellow); box-shadow: inset 4px 0 0 var(--yellow); }
+  .count { font-size: 13px; color: var(--muted); margin: 4px 0 12px; }
+  .count b { color: var(--text); }
+
+  /* jogos */
+  .list { display: grid; gap: 10px; }
+  .day { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin: 14px 2px 2px; }
+  .game { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; align-items: center; transition: border-color .15s, background .15s; }
+  .game:hover { background: var(--card-h); }
+  .game.hot { border-color: var(--y-line); background: linear-gradient(90deg, var(--y-bg), var(--card) 55%); }
+  .game.won { border-color: rgba(34, 197, 94, .4); }
+  .game.lost { opacity: .6; }
   .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .teams { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .teams img { width: 20px; height: 20px; object-fit: contain; }
-  .score { font-variant-numeric: tabular-nums; padding: 0 4px; color: var(--yellow); }
-  .vs { color: var(--muted); font-weight: 400; }
-  .prob { text-align: right; min-width: 96px; }
-  .prob b { font-size: 28px; font-variant-numeric: tabular-nums; }
-  .prob small { display: block; color: var(--muted); font-size: 11px; }
-  .bar { grid-column: 1 / -1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
-  .bar span { display: block; height: 100%; }
-  .details { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
-  .tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
+  .meta .lg { color: var(--text); font-weight: 600; }
+  .teams { display: grid; gap: 4px; margin-top: 8px; }
+  .team { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; }
+  .team img, .team .ph { width: 22px; height: 22px; object-fit: contain; flex: none; }
+  .team .ph { border-radius: 50%; background: var(--line2); }
+  .team .sc { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--y); font-weight: 800; min-width: 18px; text-align: right; }
+  .prob { text-align: center; min-width: 92px; }
+  .ring { --p: 0; width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto;
+    background: conic-gradient(var(--c, var(--y)) calc(var(--p) * 1%), var(--line) 0); }
+  .ring > div { width: 62px; height: 62px; border-radius: 50%; background: var(--card); display: grid; place-items: center; }
+  .game.hot .ring > div { background: #17150c; }
+  .ring b { font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .prob small { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; line-height: 1.25; }
+  .details { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .chip { font-size: 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; color: var(--muted); }
+  .chip b { color: var(--text); font-weight: 700; }
+  .tag { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; letter-spacing: .3px; }
   .tag.live { background: var(--red); color: #fff; animation: pulse 1.5s infinite; }
-  .tag.green { background: var(--green); color: #04150a; }
-  .tag.red { background: #3b1414; color: var(--red); }
-  .tag.conf { background: var(--yellow); color: #111; }
+  .tag.green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34, 197, 94, .4); }
+  .tag.red { background: var(--red-bg); color: var(--red); }
+  .tag.conf { background: var(--y); color: #111; }
   @keyframes pulse { 50% { opacity: .55; } }
-  .empty, .loading { text-align: center; color: var(--muted); padding: 30px 10px; }
-  .progress { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 12px auto 0; max-width: 420px; }
-  .progress span { display: block; height: 100%; background: var(--yellow); transition: width .3s; }
-  .warn { font-size: 12px; color: var(--muted); border-left: 3px solid var(--yellow); padding-left: 10px; margin-top: 20px; }
-  @media (max-width: 560px) { .prob b { font-size: 23px; } .teams { font-size: 15px; } .tagline { margin-left: 0; } .logo-name { font-size: 22px; } }
+
+  .empty, .loading { text-align: center; color: var(--muted); padding: 40px 10px; background: var(--card); border: 1px dashed var(--line2); border-radius: var(--r); }
+  .empty b { color: var(--text); }
+  .progress { height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 14px auto 0; max-width: 360px; }
+  .progress span { display: block; height: 100%; background: var(--y); transition: width .3s; }
+  .skel { height: 120px; border-radius: var(--r); background: linear-gradient(90deg, var(--card) 0%, var(--card-h) 50%, var(--card) 100%); background-size: 200% 100%; animation: sh 1.2s infinite; }
+  @keyframes sh { to { background-position: -200% 0; } }
+
+  footer { margin: 36px 0 30px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); }
+  footer p { margin: 0 0 8px; }
+  footer .age { display: inline-block; border: 1px solid var(--line2); border-radius: 6px; padding: 1px 6px; font-weight: 800; color: var(--muted); margin-right: 6px; }
+
+  @media (max-width: 560px) {
+    .tab { padding: 12px 6px 10px; font-size: 13px; gap: 5px; }
+    .tab .full { display: none; } .tab .short { display: inline; }
+    .game { padding: 12px; gap: 8px 10px; }
+    .ring { width: 66px; height: 66px; } .ring > div { width: 53px; height: 53px; } .ring b { font-size: 16px; }
+    .prob { min-width: 74px; }
+    .team { font-size: 14px; }
+    .stat .v { font-size: 24px; }
+    .live-pill span { display: none; }
+  }
 </style>
 </head>
 <body>
-<div class="top">
-  <div class="top-in">
-    <div class="logo"><div class="logo-mark">J</div><div class="logo-name">JOEL <span>TIPS</span></div></div>
-    <div class="tagline">Gol no 1º tempo • todas as ligas • ao vivo</div>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="logo" href="#"><div class="logo-mark">J</div><div class="logo-name">JOEL <span>TIPS</span></div></a>
+    <div class="live-pill"><i class="dot"></i><span id="upd">Conectando…</span></div>
   </div>
-</div>
-<main>
-  <div class="hero">
-    <h1>Jogos com <em>alta chance de gol no 1º tempo</em></h1>
-    <p>Over 0.5 HT — pelo menos 1 gol até o intervalo. Ao vivo e próximos 3 dias, todas as competições com dados. Atualiza sozinho a cada 30s.</p>
+</header>
+<nav class="tabs-bar">
+  <div class="wrap tabs" id="tabs">
+    <button class="tab" data-m="ht">⚽ <span class="full">Gol 1º Tempo</span><span class="short">Gol HT</span> <span class="n" id="n-ht">–</span></button>
+    <button class="tab" data-m="cards">🟨 <span class="full">+2.5 Cartões</span><span class="short">Cartões</span> <span class="n" id="n-cards">–</span></button>
+    <button class="tab" data-m="corners">🚩 <span class="full">+8.5 Escanteios</span><span class="short">Escanteios</span> <span class="n" id="n-corners">–</span></button>
   </div>
+</nav>
 
-  <section class="panel">
-    <h2>Acerto do modelo no passado</h2>
-    <div class="sub" id="accSub">Calculando…</div>
-    <div class="acc" id="acc"></div>
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <p id="rule"></p>
+    <div class="stats" id="stats"></div>
+    <div class="proof" id="proof"></div>
   </section>
 
-  <section class="panel">
-    <div class="filters">
-      <button class="chip" data-min="0.7">70%+</button>
-      <button class="chip on" data-min="0.75">75%+</button>
-      <button class="chip" data-min="0.8">80%+</button>
-      <button class="chip" data-min="0.85">85%+</button>
-      <select id="when">
-        <option value="all">Ao vivo + futuros</option>
-        <option value="live">Só ao vivo</option>
-        <option value="pre">Só futuros</option>
-      </select>
-      <select id="league"><option value="">Todas as ligas</option></select>
-      <input id="q" type="search" placeholder="Buscar time…">
-    </div>
-  </section>
-
+  <div class="filters">
+    <div class="seg" id="mins"></div>
+    <select id="when">
+      <option value="all">Ao vivo + próximos</option>
+      <option value="live">Só ao vivo</option>
+      <option value="pre">Só próximos</option>
+    </select>
+    <select id="league"><option value="">Todas as ligas</option></select>
+    <input id="q" type="search" placeholder="Buscar time…" autocomplete="off">
+  </div>
   <div class="count" id="count"></div>
-  <div id="list" class="list"><div class="loading">Carregando…</div></div>
+  <div id="list" class="list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
 
-  <p class="warn">Nenhum palpite é 100%. A porcentagem já foi ajustada pelo que aconteceu de verdade nos jogos passados: se diz 82%, em média 82 de cada 100 jogos parecidos tiveram gol no 1º tempo — e 18 não. Use como análise, não como garantia. Se apostar, só com dinheiro que pode perder. +18.</p>
+  <footer>
+    <p><span class="age">+18</span>Nenhum palpite é garantido — nem o melhor modelo prevê o futuro. A porcentagem foi ajustada pelo que realmente aconteceu em milhares de jogos: se diz 85%, em média 85 de cada 100 jogos parecidos bateram — e 15 não.</p>
+    <p>Use como análise, não como certeza. Se apostar, só com dinheiro que você pode perder. Dados: placares públicos ESPN.</p>
+  </footer>
 </main>
 
 <script>
-  let minProb = 0.75, data = [];
+  const MK = {
+    ht: {
+      eyebrow: 'Over 0.5 HT', title: 'Gol no 1º tempo', line: 0.5, unit: 'gols no 1º T',
+      rule: 'Basta <b>1 gol</b> até o intervalo — de qualquer time. Saiu um gol no 1º tempo, já bateu.',
+      mins: [0.7, 0.75, 0.8], def: 0.75, next: '+1.5 no 1º T',
+    },
+    cards: {
+      eyebrow: 'Over 2.5 cartões', title: 'Mais de 2,5 cartões', line: 2.5, unit: 'cartões',
+      rule: 'Precisa de <b>3 ou mais cartões</b> (amarelos + vermelhos) somando os dois times, na <b>partida inteira</b>.',
+      mins: [0.75, 0.8, 0.85, 0.9], def: 0.85, next: '+3.5 cartões',
+    },
+    corners: {
+      eyebrow: 'Over 8.5 escanteios', title: 'Mais de 8,5 escanteios', line: 8.5, unit: 'escanteios',
+      rule: 'Precisa de <b>9 ou mais escanteios</b> somando os dois times, na <b>partida inteira</b>.',
+      mins: [0.65, 0.7, 0.75, 0.8], def: 0.7, next: '+9.5 escanteios',
+    },
+  };
+  let market = (location.hash || '').slice(1);
+  if (!MK[market]) market = 'ht';
+  let minProb = {}; for (const k in MK) minProb[k] = MK[k].def;
+  let data = [], status = null;
+
   const $ = (s) => document.querySelector(s);
   const pct = (x) => Math.round(x * 100) + '%';
-  const color = (p) => p >= 0.75 ? 'var(--yellow)' : p >= 0.7 ? 'var(--mid)' : 'var(--low)';
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const colorFor = (p) => p >= MK[market].def ? 'var(--y)' : p >= MK[market].def - 0.05 ? 'var(--mid)' : 'var(--dim)';
 
-  document.querySelectorAll('[data-min]').forEach((b) => b.onclick = () => {
-    document.querySelectorAll('[data-min]').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on'); minProb = +b.dataset.min; render();
-  });
-  $('#when').onchange = render; $('#league').onchange = render; $('#q').oninput = render;
-
-  function when(g) {
-    const d = new Date(g.date), today = new Date(), tm = new Date(); tm.setDate(today.getDate() + 1);
-    const hm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    if (d.toDateString() === today.toDateString()) return 'Hoje ' + hm;
-    if (d.toDateString() === tm.toDateString()) return 'Amanhã ' + hm;
-    return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }) + ' ' + hm;
+  // ---------- abas ----------
+  document.querySelectorAll('.tab').forEach((t) => t.onclick = () => setMarket(t.dataset.m));
+  window.addEventListener('hashchange', () => { const m = location.hash.slice(1); if (MK[m] && m !== market) setMarket(m); });
+  function setMarket(m) {
+    market = m;
+    if (location.hash !== '#' + m) history.replaceState(null, '', '#' + m);
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.m === m));
+    const M = MK[m];
+    $('#eyebrow').textContent = M.eyebrow;
+    $('#title').textContent = M.title;
+    $('#rule').innerHTML = M.rule;
+    $('#mins').innerHTML = M.mins.map((v) => `<button data-v="${v}" class="${v === minProb[m] ? 'on' : ''}">${pct(v)}+</button>`).join('');
+    $('#mins').querySelectorAll('button').forEach((b) => b.onclick = () => { minProb[market] = +b.dataset.v; setMarket(market); });
+    renderStats(); fillLeagues(); render();
   }
 
-  const finishedHT = (g) => g.live && (g.live.status === 'green' || g.live.status === 'red');
-  // probabilidade "agora": ao vivo usa o tempo que falta; antes do jogo usa a pré-jogo
-  const current = (g) => finishedHT(g) ? g.prob : g.live ? g.live.p05 : g.prob;
+  // ---------- acerto ----------
+  function renderStats() {
+    const b = status && status.backtest && status.backtest[market];
+    if (!b) { $('#stats').innerHTML = ''; $('#proof').textContent = ''; return; }
+    const cards = b.thresholds.filter((t) => t.n >= 25 && MK[market].mins.includes(t.t) || (t.n >= 25 && t.t >= 0.9));
+    $('#stats').innerHTML =
+      `<div class="stat base"><div class="k">Média geral</div><div class="v">${pct(b.base)}</div><div class="s">dos jogos batem</div></div>` +
+      cards.map((t) => `<div class="stat"><div class="k">Palpites ${pct(t.t)}+</div><div class="v">${pct(t.acc)}</div><div class="s">acerto em ${t.n.toLocaleString('pt-BR')} jogos</div></div>`).join('');
+    $('#proof').innerHTML = `✔ Teste honesto: o modelo aprendeu com jogos antigos e foi conferido em <b>${b.nTest.toLocaleString('pt-BR')}</b> jogos recentes que ele nunca tinha visto.`;
+  }
+
+  // ---------- lista ----------
+  const finished = (L) => L && (L.status === 'green' || L.status === 'red');
+  const nowProb = (mk) => mk.live && mk.live.status === 'live' && mk.live.p != null ? mk.live.p : mk.prob;
+
+  function passes(g, m) {
+    const mk = g.markets[m];
+    if (!mk) return false;
+    if (g.state === 'post') return false;
+    if (finished(mk.live)) return mk.prob >= minProb[m]; // mostra o resultado de quem estava na lista
+    return nowProb(mk) >= minProb[m];
+  }
+
+  function fillLeagues() {
+    const sel = $('#league'), cur = sel.value;
+    const leagues = [...new Map(data.filter((g) => passes(g, market)).map((g) => [g.league, g.leagueName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    sel.innerHTML = '<option value="">Todas as ligas</option>' + leagues.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+    sel.value = leagues.some(([k]) => k === cur) ? cur : '';
+  }
+
+  function dayLabel(d) {
+    const t = new Date(), tm = new Date(); tm.setDate(t.getDate() + 1);
+    if (d.toDateString() === t.toDateString()) return 'Hoje';
+    if (d.toDateString() === tm.toDateString()) return 'Amanhã';
+    return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  }
 
   function render() {
     const w = $('#when').value, lg = $('#league').value, q = $('#q').value.trim().toLowerCase();
-    const games = data.filter((g) => {
-      if (g.state === 'post') return false;
+    for (const k in MK) { const n = data.filter((g) => passes(g, k) && g.state !== 'post').length; $('#n-' + k).textContent = n; }
+    if (!status || !status.loading.ready) return;
+    let games = data.filter((g) => {
+      if (!passes(g, market)) return false;
       if (lg && g.league !== lg) return false;
       if (q && !(g.home.name + ' ' + g.away.name).toLowerCase().includes(q)) return false;
       if (w === 'live' && g.state !== 'in') return false;
       if (w === 'pre' && g.state !== 'pre') return false;
-      return current(g) >= minProb;
+      return true;
     });
-    const live = games.filter((g) => g.state === 'in').length;
-    $('#count').innerHTML = `<b>${games.length}</b> jogo(s) com ${pct(minProb)}+ ${live ? `• <b>${live}</b> ao vivo` : ''}`;
+    const live = games.filter((g) => g.state === 'in');
+    const pre = games.filter((g) => g.state !== 'in').sort((a, b) => a.date.localeCompare(b.date) || b.markets[market].prob - a.markets[market].prob);
+    live.sort((a, b) => nowProb(b.markets[market]) - nowProb(a.markets[market]));
+    $('#count').innerHTML = `<b>${games.length}</b> jogo(s) com ${pct(minProb[market])}+${live.length ? ` • <b style="color:var(--red)">${live.length} ao vivo</b>` : ''}`;
     if (!games.length) {
-      $('#list').innerHTML = `<div class="empty">Nenhum jogo com ${pct(minProb)}+ agora.<br>Tente baixar o mínimo ou volte mais tarde.</div>`;
+      $('#list').innerHTML = `<div class="empty"><b>Nenhum jogo com ${pct(minProb[market])}+ agora.</b><br>Só mostramos jogos com chance alta. Tente um mínimo menor ou volte mais tarde.</div>`;
       return;
     }
-    $('#list').innerHTML = games.map((g) => {
-      const p = current(g);
-      const reliable = g.nHome >= 10 && g.nAway >= 10;
-      let tag = '', probLabel = 'pré-jogo';
-      if (g.live) {
-        if (g.live.status === 'green') { tag = '<span class="tag green">✓ SAIU GOL NO 1º T</span>'; probLabel = 'pré-jogo'; }
-        else if (g.live.status === 'red') { tag = '<span class="tag red">✗ 1º tempo sem gol</span>'; probLabel = 'pré-jogo'; }
-        else { tag = `<span class="tag live">AO VIVO ${esc(g.clock)}</span>`; probLabel = `até o intervalo (pré: ${pct(g.prob)})`; }
-      }
-      if (!g.live && p >= 0.78 && reliable) tag += '<span class="tag conf">★ Alta confiança</span>';
-      const score = g.state !== 'pre' ? `<span class="score">${g.scoreH} - ${g.scoreA}</span>` : '<span class="vs">x</span>';
-      const img = (t) => t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">` : '';
-      return `<div class="game ${p >= 0.75 ? 'top' : ''}">
-        <div>
-          <div class="meta"><span>${esc(g.leagueName)}</span><span>•</span><span>${when(g)}</span>${tag}</div>
-          <div class="teams">${img(g.home)}${esc(g.home.name)} ${score} ${esc(g.away.name)}${img(g.away)}</div>
-        </div>
-        <div class="prob"><b style="color:${color(p)}">${pct(p)}</b><small>${probLabel}</small></div>
-        <div class="bar"><span style="width:${pct(p)};background:${color(p)}"></span></div>
-        <div class="details">
-          ${esc(g.home.name)}: gol no 1º T em ${pct(g.rateHome)} dos jogos (${g.nHome} jogos) •
-          ${esc(g.away.name)}: ${pct(g.rateAway)} (${g.nAway} jogos) •
-          gols esperados no 1º T: ${g.lam.toFixed(2)} • Over 1.5 HT: ${pct(g.live && g.live.status === 'live' ? g.live.p15 : g.p15)}
-          ${g.state === 'in' ? ` • 1º T: ${g.h1Home}-${g.h1Away}` : ''}
-        </div>
-      </div>`;
-    }).join('');
+    let html = '';
+    if (live.length) html += `<div class="day" style="color:var(--red)">● Ao vivo</div>` + live.map(card).join('');
+    let lastDay = '';
+    for (const g of pre) {
+      const dl = dayLabel(new Date(g.date));
+      if (dl !== lastDay) { html += `<div class="day">${dl}</div>`; lastDay = dl; }
+      html += card(g);
+    }
+    $('#list').innerHTML = html;
   }
 
+  function card(g) {
+    const M = MK[market], mk = g.markets[market], L = mk.live;
+    const p = finished(L) ? mk.prob : nowProb(mk);
+    const reliable = mk.nHome >= 10 && mk.nAway >= 10;
+    const time = new Date(g.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    let tag = '', label = 'pré-jogo', cls = p >= M.def ? 'hot' : '';
+    if (L && L.status === 'green') { tag = `<span class="tag green">✓ BATEU${L.now != null ? ` (${L.now})` : ''}</span>`; label = 'chance pré-jogo'; cls = 'won'; }
+    else if (L && L.status === 'red') { tag = `<span class="tag red">✗ Não bateu</span>`; label = 'chance pré-jogo'; cls = 'lost'; }
+    else if (L && L.status === 'live') {
+      tag = `<span class="tag live">AO VIVO ${esc(g.clock || '')}</span>`;
+      label = market === 'ht' ? 'até o intervalo' : 'até o fim';
+    }
+    if (!L && p >= M.def && reliable) tag += '<span class="tag conf">★ Alta confiança</span>';
+    const showScore = g.state !== 'pre';
+    const img = (t) => t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">` : '<span class="ph"></span>';
+    const nowChip = L && L.now != null && g.state === 'in' ? `<span class="chip">Agora: <b>${L.now} ${M.unit}</b></span>` : '';
+    const ht = market === 'ht' && g.state === 'in' ? `<span class="chip">1º T: <b>${g.h1Home}-${g.h1Away}</b></span>` : '';
+    const avgTxt = market === 'ht'
+      ? `<span class="chip">${esc(g.home.name)}: gol no 1º T em <b>${pct(mk.rateHome)}</b></span><span class="chip">${esc(g.away.name)}: <b>${pct(mk.rateAway)}</b></span>`
+      : `<span class="chip">Média ${esc(g.home.name)}: <b>${mk.avgHome.toFixed(1)}</b> ${M.unit}/jogo</span><span class="chip">Média ${esc(g.away.name)}: <b>${mk.avgAway.toFixed(1)}</b></span>`;
+    return `<article class="game ${cls}">
+      <div>
+        <div class="meta"><span class="lg">${esc(g.leagueName)}</span><span>•</span><span>${time}</span>${tag}</div>
+        <div class="teams">
+          <div class="team">${img(g.home)}<span>${esc(g.home.name)}</span>${showScore ? `<span class="sc">${g.scoreH}</span>` : ''}</div>
+          <div class="team">${img(g.away)}<span>${esc(g.away.name)}</span>${showScore ? `<span class="sc">${g.scoreA}</span>` : ''}</div>
+        </div>
+      </div>
+      <div class="prob">
+        <div class="ring" style="--p:${Math.round(p * 100)};--c:${colorFor(p)}"><div><b style="color:${colorFor(p)}">${pct(p)}</b></div></div>
+        <small>${label}${L && L.status === 'live' ? `<br>pré: ${pct(mk.prob)}` : ''}</small>
+      </div>
+      <div class="details">
+        ${nowChip}${ht}${avgTxt}
+        <span class="chip">Esperado: <b>${mk.lam.toFixed(1)}</b> ${M.unit}</span>
+        <span class="chip">${M.next}: <b>${pct(mk.pNext)}</b></span>
+        <span class="chip">Base: <b>${mk.nHome}+${mk.nAway}</b> jogos</span>
+      </div>
+    </article>`;
+  }
+
+  $('#when').onchange = render; $('#league').onchange = render; $('#q').oninput = render;
+
+  // ---------- dados ----------
   async function loadStatus() {
-    const s = await (await fetch('/api/status')).json();
-    const L = s.loading;
+    status = await (await fetch('/api/status')).json();
+    const L = status.loading;
     if (!L.ready) {
       const w = L.total ? Math.round(100 * L.done / L.total) : 0;
-      $('#list').innerHTML = `<div class="loading">Baixando histórico de jogos de todas as ligas… ${L.done}/${L.total || '?'} dias<br><small>Só demora assim na primeira vez.</small><div class="progress"><span style="width:${w}%"></span></div></div>`;
-      $('#accSub').textContent = 'Aguardando o histórico…';
+      $('#list').innerHTML = `<div class="loading">Preparando o modelo com o histórico de todas as ligas… ${L.done}/${L.total || '?'}<br><small>Se o site estava parado, isso leva cerca de 1 minuto.</small><div class="progress"><span style="width:${w}%"></span></div></div>`;
+      $('#upd').textContent = 'Carregando…';
       return false;
     }
-    const b = s.backtest;
-    if (b && b.n) {
-      $('#accSub').innerHTML = `Teste em <b>${b.n.toLocaleString('pt-BR')}</b> jogos passados de <b>${b.ligas}</b> competições (cada palpite feito só com dados de antes do jogo). Na média, ${pct(b.base)} dos jogos têm gol no 1º tempo.`;
-      $('#acc').innerHTML = b.thresholds.filter((t) => t.n >= 30).map((t) =>
-        `<div><small>Palpites ${pct(t.t)}+</small><b style="color:${color(t.acc)}">${pct(t.acc)}</b><small>acerto em ${t.n.toLocaleString('pt-BR')} jogos</small></div>`).join('');
-    }
+    renderStats();
     return true;
   }
 
   async function loadGames() {
     const r = await (await fetch('/api/jogos')).json();
     data = r.jogos || [];
-    const sel = $('#league'), cur = sel.value;
-    const leagues = [...new Map(data.filter((g) => g.state !== 'post').map((g) => [g.league, g.leagueName])).entries()]
-      .sort((a, b) => a[1].localeCompare(b[1]));
-    sel.innerHTML = '<option value="">Todas as ligas</option>' + leagues.map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
-    sel.value = cur;
-    render();
+    $('#upd').textContent = 'Atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    fillLeagues(); render();
   }
 
   async function tick() {
     try { if (await loadStatus()) await loadGames(); }
-    catch (e) { $('#list').innerHTML = '<div class="empty">Servidor desligado? Abra o <b>iniciar.bat</b> na pasta do projeto.</div>'; }
+    catch (e) { $('#upd').textContent = 'Sem conexão'; }
   }
+  setMarket(market);
   tick();
   setInterval(tick, 30000);
-  // enquanto carrega o histórico, atualiza mais rápido
   const fast = setInterval(async () => {
     try { const s = await (await fetch('/api/status')).json(); if (s.loading.ready) { clearInterval(fast); tick(); } else loadStatus(); } catch (_) {}
   }, 2000);
