@@ -223,6 +223,8 @@
 
   const $ = (s) => document.querySelector(s);
   const pct = (x) => Math.round(x * 100) + '%';
+  const rateTxt = (r, n) => (n ? pct(r) : 'sem histórico');
+  const avgTxtOf = (v) => (v == null ? 'sem histórico' : v.toFixed(1));
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const colorFor = (p) => p >= MK[market].def ? 'var(--y)' : p >= MK[market].def - 0.05 ? 'var(--mid)' : 'var(--dim)';
 
@@ -332,10 +334,10 @@
       : `<span class="chip">Agora: <b>${L.now} ${M.unit}</b></span>`;
     const ht = market === 'ht' && g.state === 'in' ? `<span class="chip">1º T: <b>${g.h1Home}-${g.h1Away}</b></span>` : '';
     const avgTxt = market === 'ht'
-      ? `<span class="chip">${esc(g.home.name)}: gol no 1º T em <b>${pct(mk.rateHome)}</b></span><span class="chip">${esc(g.away.name)}: <b>${pct(mk.rateAway)}</b></span>`
+      ? `<span class="chip">${esc(g.home.name)}: gol no 1º T em <b>${rateTxt(mk.rateHome, mk.nHome)}</b></span><span class="chip">${esc(g.away.name)}: <b>${rateTxt(mk.rateAway, mk.nAway)}</b></span>`
       : market === 'btts'
-      ? `<span class="chip">Jogos do ${esc(g.home.name)} com ambas marcam: <b>${pct(mk.rateHome)}</b></span><span class="chip">Do ${esc(g.away.name)}: <b>${pct(mk.rateAway)}</b></span>`
-      : `<span class="chip">Média ${esc(g.home.name)}: <b>${mk.avgHome.toFixed(1)}</b> ${M.unit}/jogo</span><span class="chip">Média ${esc(g.away.name)}: <b>${mk.avgAway.toFixed(1)}</b></span>`;
+      ? `<span class="chip">Jogos do ${esc(g.home.name)} com ambas marcam: <b>${rateTxt(mk.rateHome, mk.nHome)}</b></span><span class="chip">Do ${esc(g.away.name)}: <b>${rateTxt(mk.rateAway, mk.nAway)}</b></span>`
+      : `<span class="chip">Média ${esc(g.home.name)}: <b>${avgTxtOf(mk.avgHome)}</b> ${M.unit}/jogo</span><span class="chip">Média ${esc(g.away.name)}: <b>${avgTxtOf(mk.avgAway)}</b></span>`;
     return `<article class="game ${cls}">
       <div>
         <div class="meta"><span class="lg">${esc(g.leagueName)}</span><span>•</span><span>${time}</span>${tag}</div>
@@ -352,7 +354,7 @@
         ${nowChip}${ht}${avgTxt}
         <span class="chip">Esperado: <b>${mk.lam.toFixed(1)}</b> ${M.unit}</span>
         <span class="chip">${M.next}: <b>${pct(mk.pNext)}</b></span>
-        <span class="chip">Base: <b>${mk.nHome}+${mk.nAway}</b> jogos</span>
+        <span class="chip">Base: <b>${mk.nHome}+${mk.nAway}</b> jogos${!mk.nHome || !mk.nAway ? ' (time sem histórico: usa a média da competição)' : ''}</span>
       </div>
       <div class="actions">
         <button class="copy" type="button" data-team="${esc(g.home.name)}" data-vs="${esc(g.away.name)}">📋 Copiar <b>${esc(g.home.name)}</b></button>

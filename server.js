@@ -12,7 +12,10 @@ const DATA_VERSION = 4;      // muda quando o formato salvo muda (força baixar 
 const HISTORY_DAYS = 240;      // quanto histórico usar
 const RECENT_GAMES = 20;       // últimos N jogos de cada time
 const SHRINK = 4;              // "jogos fantasmas" com a média da liga (evita exagero com poucos jogos)
-const MIN_GAMES = +(process.env.MIN_GAMES || 3); // testado: 3 mantém o acerto e cobre mais jogos que 5         // mínimo de jogos de cada time para dar palpite
+// mínimo de jogos de cada time para dar palpite. Testado fora da amostra: 0 (time sem histórico usa a média
+// da competição) mantém o acerto em gol HT, cartões e ambas marcam; escanteios pioram, então lá fica 3.
+const MIN_GAMES = +(process.env.MIN_GAMES || 0);
+const DAYS_AHEAD = 7;          // mostra jogos dos próximos 7 dias
 const ALL_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard?limit=1000&dates=';
 
 // nomes em português das principais; as outras usam o nome que vem da fonte
@@ -46,6 +49,7 @@ const MARKETS = {
     // 0 x 0 escanteios no fim do jogo = a fonte não registrou (jogo real sem escanteio é raríssimo);
     // com prorrogação o total inclui a prorrogação, que a aposta não conta → fica de fora
     known: (g) => g.cornersH != null && g.cornersA != null && g.cornersH + g.cornersA > 0 && !g.extraTime,
+    minGames: 3,
   },
   btts: {
     label: 'Ambas marcam', line: 0.5, full: true,
@@ -311,7 +315,8 @@ function predict(mk, match, beforeDate) {
   if (mk === 'cards' && !cardLeagues.has(match.league)) return null;
   const sh = teamStats(mk, match.home.id, beforeDate);
   const sa = teamStats(mk, match.away.id, beforeDate);
-  if (sh.length < MIN_GAMES || sa.length < MIN_GAMES) return null;
+  const minG = Math.max(MIN_GAMES, M.minGames || 0);
+  if (sh.length < minG || sa.length < minG) return null;
   const L = leagueAvg(mk, match.league, beforeDate);
   const mu = Math.max(0.2, L.perTeam);
   const shr = (sum, n, prior) => (sum + SHRINK * prior) / (n + SHRINK);
@@ -327,7 +332,7 @@ function predict(mk, match, beforeDate) {
   const lamH = (attH * defA) / mu, lamA = (attA * defH) / mu;
   const lam = lamH + lamA;
   const rate = (arr) => shr(arr.filter((x) => x.hit).length, arr.length, L.hit);
-  const avg = (arr) => arr.reduce((s, x) => s + x.t, 0) / arr.length;
+  const avg = (arr) => (arr.length ? arr.reduce((s, x) => s + x.t, 0) / arr.length : null); // null = sem histórico
   const raw = 0.6 * M.model(lamH, lamA) + 0.4 * (rate(sh) + rate(sa)) / 2;
   return {
     raw, lam, lamH, lamA, pNext: M.next(lamH, lamA),
@@ -428,8 +433,10 @@ let lastMerge = 0;
 async function currentMatches() {
   const today = new Date();
   const out = [];
-  await pool([-1, 0, 1, 2, 3], 5, async (n) => {
-    const evs = await fetchDay(ymd(addDays(today, n)), n <= 0 ? 25000 : 10 * 60000);
+  const offsets = []; for (let n = -1; n <= DAYS_AHEAD; n++) offsets.push(n);
+  await pool(offsets, 5, async (n) => {
+    // hoje/ontem: atualiza a cada 25 s (ao vivo); amanhã: 10 min; dias mais longe: 30 min
+    const evs = await fetchDay(ymd(addDays(today, n)), n <= 0 ? 25000 : n === 1 ? 10 * 60000 : 30 * 60000);
     for (const e of evs) out.push(e);
   });
   // jogos que terminaram entram no histórico (no máximo a cada 30 min, para não pesar no servidor)
@@ -446,7 +453,7 @@ async function currentMatches() {
     if (seen.has(m.id)) continue; seen.add(m.id);
     if (m.state === 'post' && !m.done) continue; // adiado, cancelado, abandonado
     const t = new Date(m.date).getTime();
-    const relevant = m.state === 'in' || (m.state === 'pre' && t < now + 3 * 86400000) ||
+    const relevant = m.state === 'in' || (m.state === 'pre' && t < now + DAYS_AHEAD * 86400000) ||
       (m.state === 'post' && now - t < 6 * 3600000);
     if (!relevant) continue;
     const markets = {};
