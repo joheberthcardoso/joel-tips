@@ -126,12 +126,17 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .5); transition: transform .25s; }
   .toast.show { transform: translate(-50%, 0); }
   .toast b { color: var(--y); }
+  .warnbox { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--red-bg); border: 1px solid rgba(239, 68, 68, .35); color: #fca5a5; font-size: 13px; }
   footer { margin: 36px 0 30px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); }
   footer p { margin: 0 0 8px; }
   footer .age { display: inline-block; border: 1px solid var(--line2); border-radius: 6px; padding: 1px 6px; font-weight: 800; color: var(--muted); margin-right: 6px; }
 
   @media (max-width: 560px) {
-    .tab { padding: 12px 6px 10px; font-size: 13px; gap: 5px; }
+    /* celular: as 4 abas lado a lado, sem rolagem */
+    .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 0 4px; }
+    .tab { padding: 13px 2px 11px; font-size: 12.5px; gap: 4px; min-width: 0; }
+    .tab .ic { display: none; }
+    .tab .n { padding: 1px 5px; font-size: 10.5px; }
     .tab .full { display: none; } .tab .short { display: inline; }
     .game { padding: 12px; gap: 8px 10px; }
     .ring { width: 66px; height: 66px; } .ring > div { width: 53px; height: 53px; } .ring b { font-size: 16px; }
@@ -151,9 +156,10 @@
 </header>
 <nav class="tabs-bar">
   <div class="wrap tabs" id="tabs">
-    <button class="tab" data-m="ht">⚽ <span class="full">Gol 1º Tempo</span><span class="short">Gol HT</span> <span class="n" id="n-ht">–</span></button>
-    <button class="tab" data-m="cards">🟨 <span class="full">+2.5 Cartões</span><span class="short">Cartões</span> <span class="n" id="n-cards">–</span></button>
-    <button class="tab" data-m="corners">🚩 <span class="full">+8.5 Escanteios</span><span class="short">Escanteios</span> <span class="n" id="n-corners">–</span></button>
+    <button class="tab" data-m="ht"><span class="ic">⚽</span> <span class="full">Gol 1º Tempo</span><span class="short">Gol HT</span> <span class="n" id="n-ht">–</span></button>
+    <button class="tab" data-m="cards"><span class="ic">🟨</span> <span class="full">+2.5 Cartões</span><span class="short">Cartões</span> <span class="n" id="n-cards">–</span></button>
+    <button class="tab" data-m="corners"><span class="ic">🚩</span> <span class="full">+8.5 Escanteios</span><span class="short">Escant.</span> <span class="n" id="n-corners">–</span></button>
+    <button class="tab" data-m="btts"><span class="ic">🤝</span> <span class="full">Ambas Marcam</span><span class="short">Ambas</span> <span class="n" id="n-btts">–</span></button>
   </div>
 </nav>
 
@@ -203,6 +209,12 @@
       rule: 'Precisa de <b>9 ou mais escanteios</b> somando os dois times, na <b>partida inteira</b>.',
       mins: [0.65, 0.7, 0.75, 0.8], def: 0.7, next: '+9.5 escanteios',
     },
+    btts: {
+      eyebrow: 'Ambas marcam — Sim', title: 'Ambas marcam', line: 0.5, unit: 'gols',
+      rule: 'Os <b>dois times</b> precisam marcar <b>pelo menos 1 gol cada</b>, na <b>partida inteira</b> (90 min, sem prorrogação).',
+      mins: [0.55, 0.6, 0.65], def: 0.6, next: '+2.5 gols',
+      warn: '⚠ Mercado mais arriscado do site: na média só ~52% dos jogos têm ambas marcam, e nem os melhores palpites passam de ~60–65% de acerto. Aqui não existe “chance alta” como nos cartões.',
+    },
   };
   let market = (location.hash || '').slice(1);
   if (!MK[market]) market = 'ht';
@@ -238,7 +250,8 @@
     $('#stats').innerHTML =
       `<div class="stat base"><div class="k">Média geral</div><div class="v">${pct(b.base)}</div><div class="s">dos jogos batem</div></div>` +
       cards.map((t) => `<div class="stat"><div class="k">Palpites ${pct(t.t)}+</div><div class="v">${pct(t.acc)}</div><div class="s">acerto em ${t.n.toLocaleString('pt-BR')} jogos</div></div>`).join('');
-    $('#proof').innerHTML = `✔ Teste honesto: o modelo aprendeu com jogos antigos e foi conferido em <b>${b.nTest.toLocaleString('pt-BR')}</b> jogos recentes que ele nunca tinha visto.`;
+    $('#proof').innerHTML = `✔ Teste honesto: o modelo aprendeu com jogos antigos e foi conferido em <b>${b.nTest.toLocaleString('pt-BR')}</b> jogos recentes que ele nunca tinha visto.` +
+      (MK[market].warn ? `<div class="warnbox">${MK[market].warn}</div>` : '');
   }
 
   // ---------- lista ----------
@@ -314,10 +327,14 @@
     if (!L && p >= M.def && reliable) tag += '<span class="tag conf">★ Alta confiança</span>';
     const showScore = g.state !== 'pre';
     const img = (t) => t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">` : '<span class="ph"></span>';
-    const nowChip = L && L.now != null && g.state === 'in' ? `<span class="chip">Agora: <b>${L.now} ${M.unit}</b></span>` : '';
+    const nowChip = !(L && L.now != null && g.state === 'in') ? ''
+      : market === 'btts' ? `<span class="chip">Placar agora: <b>${esc(L.now)}</b></span>`
+      : `<span class="chip">Agora: <b>${L.now} ${M.unit}</b></span>`;
     const ht = market === 'ht' && g.state === 'in' ? `<span class="chip">1º T: <b>${g.h1Home}-${g.h1Away}</b></span>` : '';
     const avgTxt = market === 'ht'
       ? `<span class="chip">${esc(g.home.name)}: gol no 1º T em <b>${pct(mk.rateHome)}</b></span><span class="chip">${esc(g.away.name)}: <b>${pct(mk.rateAway)}</b></span>`
+      : market === 'btts'
+      ? `<span class="chip">Jogos do ${esc(g.home.name)} com ambas marcam: <b>${pct(mk.rateHome)}</b></span><span class="chip">Do ${esc(g.away.name)}: <b>${pct(mk.rateAway)}</b></span>`
       : `<span class="chip">Média ${esc(g.home.name)}: <b>${mk.avgHome.toFixed(1)}</b> ${M.unit}/jogo</span><span class="chip">Média ${esc(g.away.name)}: <b>${mk.avgAway.toFixed(1)}</b></span>`;
     return `<article class="game ${cls}">
       <div>

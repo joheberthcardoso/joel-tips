@@ -1,4 +1,4 @@
-// JOEL TIPS — probabilidades de: gol no 1º tempo (+0.5 HT), +2.5 cartões e +8.5 escanteios (partida toda).
+// JOEL TIPS — probabilidades de: gol no 1º tempo (+0.5 HT), +2.5 cartões, +8.5 escanteios e ambas marcam (partida toda).
 // Todas as ligas. Dados: placares públicos da ESPN (sem chave). Rode: node server.js  →  http://localhost:3100
 const http = require('http');
 const fs = require('fs');
@@ -47,7 +47,24 @@ const MARKETS = {
     // com prorrogação o total inclui a prorrogação, que a aposta não conta → fica de fora
     known: (g) => g.cornersH != null && g.cornersA != null && g.cornersH + g.cornersA > 0 && !g.extraTime,
   },
+  btts: {
+    label: 'Ambas marcam', line: 0.5, full: true,
+    // gols da partida inteira (90 min); jogo com prorrogação fica de fora, o placar já inclui a prorrogação
+    get: (g) => [g.scoreH, g.scoreA], known: (g) => !g.extraTime,
+    hit: (a, b) => a > 0 && b > 0,
+    // P(mandante marca) × P(visitante marca)
+    model: (lamH, lamA) => (1 - Math.exp(-lamH)) * (1 - Math.exp(-lamA)),
+    next: (lamH, lamA) => pOver(lamH + lamA, 2.5), // mostra também a chance de +2.5 gols
+    // mercado difícil: média de ~52% e teto real ~60–65% (testado fora da amostra) → faixas mais baixas
+    ths: [0.55, 0.6, 0.65, 0.7],
+  },
 };
+// padrão dos mercados de "total acima da linha"
+for (const M of Object.values(MARKETS)) {
+  M.hit ||= (a, b) => a + b > M.line;
+  M.model ||= (lamH, lamA) => pOver(lamH + lamA, M.line);
+  M.next ||= (lamH, lamA) => pOver(lamH + lamA, M.line + 1);
+}
 const MKEYS = Object.keys(MARKETS);
 let cardLeagues = new Set(); // ligas em que a fonte registra cartões de verdade
 
@@ -221,7 +238,7 @@ function buildIdx(games, mk) {
     const [a, b] = M.get(g);
     dates.push(g.date);
     cum.push(cum[cum.length - 1] + a + b);
-    cumHit.push(cumHit[cumHit.length - 1] + (a + b > M.line ? 1 : 0));
+    cumHit.push(cumHit[cumHit.length - 1] + (M.hit(a, b) ? 1 : 0));
   }
   return { dates, cum, cumHit };
 }
@@ -271,13 +288,14 @@ function teamStats(mk, teamId, beforeDate) {
     const g = games[i];
     if (g.date >= beforeDate || !M.known(g)) continue;
     const [h, a] = M.get(g);
-    if (g.home.id === teamId) out.push({ home: true, f: h, a, t: h + a });
-    else out.push({ home: false, f: a, a: h, t: h + a });
+    const hit = M.hit(h, a);
+    if (g.home.id === teamId) out.push({ home: true, f: h, a, t: h + a, hit });
+    else out.push({ home: false, f: a, a: h, t: h + a, hit });
   }
   return out;
 }
 
-const DEFAULTS = { ht: [0.55, 0.7], cards: [2.2, 0.75], corners: [4.8, 0.55] };
+const DEFAULTS = { ht: [0.55, 0.7], cards: [2.2, 0.75], corners: [4.8, 0.55], btts: [1.35, 0.5] };
 
 function leagueAvg(mk, league, beforeDate) {
   for (const idx of [leagueIdx[mk] && leagueIdx[mk].get(league), globalIdx[mk]]) {
@@ -308,11 +326,11 @@ function predict(mk, match, beforeDate) {
   const attA = venueBlend(sa, false, 'f'), defA = venueBlend(sa, false, 'a');
   const lamH = (attH * defA) / mu, lamA = (attA * defH) / mu;
   const lam = lamH + lamA;
-  const rate = (arr) => shr(arr.filter((x) => x.t > M.line).length, arr.length, L.hit);
+  const rate = (arr) => shr(arr.filter((x) => x.hit).length, arr.length, L.hit);
   const avg = (arr) => arr.reduce((s, x) => s + x.t, 0) / arr.length;
-  const raw = 0.6 * pOver(lam, M.line) + 0.4 * (rate(sh) + rate(sa)) / 2;
+  const raw = 0.6 * M.model(lamH, lamA) + 0.4 * (rate(sh) + rate(sa)) / 2;
   return {
-    raw, lam, lamH, lamA, pNext: pOver(lam, M.line + 1),
+    raw, lam, lamH, lamA, pNext: M.next(lamH, lamA),
     rateHome: rate(sh), rateAway: rate(sa), avgHome: avg(sh), avgAway: avg(sa), nHome: sh.length, nAway: sa.length,
   };
 }
@@ -326,12 +344,12 @@ function runBacktest(mk) {
     const p = predict(mk, g, g.date);
     if (!p) continue;
     const [a, b] = M.get(g);
-    rows.push({ p: p.raw, hit: a + b > M.line });
+    rows.push({ p: p.raw, hit: M.hit(a, b) });
   }
   const cut = Math.floor(rows.length * 0.7);
   const binsTrain = makeBins(rows.slice(0, cut));
   const test = rows.slice(cut);
-  const thresholds = [0.7, 0.75, 0.8, 0.85, 0.9].map((t) => {
+  const thresholds = (M.ths || [0.7, 0.75, 0.8, 0.85, 0.9]).map((t) => {
     const sel = test.filter((r) => calibrate(r.p, binsTrain) >= t);
     return { t, n: sel.length, acc: sel.length ? sel.filter((r) => r.hit).length / sel.length : null };
   });
@@ -381,6 +399,16 @@ function liveProb(mk, m, p, prob) {
     const minute = Math.min(45, liveMinute(m));
     const lamFull = -Math.log(1 - Math.min(prob, 0.995)); // usa a chance calibrada
     return { status: 'live', now: 0, minute, p: 1 - Math.exp(-lamFull * (Math.max(0, 45 - minute) + 2) / 45) };
+  }
+  if (mk === 'btts') {
+    const h = m.scoreH, a = m.scoreA, now = `${h}-${a}`;
+    if (m.state === 'post') return M.known(m) ? { status: M.hit(h, a) ? 'green' : 'red', now } : null;
+    if (m.state !== 'in') return null;
+    if (M.hit(h, a)) return { status: 'green', now, p: 1 };
+    const minute = Math.min(90, liveMinute(m));
+    const rem = (Math.max(0, 90 - minute) + 4) / 94;
+    const pH = h > 0 ? 1 : 1 - Math.exp(-p.lamH * rem), pA = a > 0 ? 1 : 1 - Math.exp(-p.lamA * rem);
+    return { status: 'live', now, minute, p: pH * pA };
   }
   const [a, b] = M.get(m);
   // jogo encerrado: só com dado confiável (sem prorrogação etc.); ao vivo: o que a fonte já marcou
